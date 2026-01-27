@@ -1,6 +1,7 @@
 
 import { Appointment, AppointmentStatus, DayAvailability, TimeSlot, User, UserRole, SystemNotification } from '../types';
 import { supabase } from './supabaseClient';
+import { format } from 'date-fns';
 
 const MIN_INTERVAL_MINUTES = 80;
 
@@ -151,6 +152,76 @@ export const checkAndSendReminders = async (userId: string) => {
 
 // --- END NOTIFICATION SYSTEM ---
 
+export const findVerificationCandidate = async (counselorId: string, message: string): Promise<Appointment | null> => {
+  // Logic: Find a PENDING or CONFIRMED appointment for this counselor for TODAY
+  // Then see if the notification message matches the student's name
+  
+  const today = format(new Date(), 'yyyy-MM-dd');
+  
+  const { data: appointments, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .eq('counselor_id', counselorId)
+    .eq('date', today)
+    .in('status', [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]);
+
+  if (error || !appointments || appointments.length === 0) {
+    console.log("No pending or confirmed appointments found for today to verify.");
+    return null;
+  }
+
+  // Try to find a match in the message (case insensitive)
+  const normalizedMessage = message.toLowerCase();
+  const match = appointments.find((appt: any) => 
+    normalizedMessage.includes(appt.student_name.toLowerCase()) || 
+    (appt.student_id_number && normalizedMessage.includes(appt.student_id_number.toLowerCase()))
+  );
+
+  if (match) {
+    return {
+      id: String(match.id),
+      studentId: String(match.student_id),
+      studentIdNumber: match.student_id_number,
+      studentName: match.student_name,
+      section: match.section,
+      parentPhoneNumber: match.parent_phone_number,
+      hasConsent: match.has_consent,
+      counselorId: String(match.counselor_id),
+      counselorName: match.counselor_name,
+      date: match.date,
+      time: match.time,
+      reason: match.reason,
+      description: match.description || '',
+      status: match.status,
+      createdAt: match.created_at
+    };
+  }
+
+  // If no name match found but there is only one appointment for today, return that one (safe fallback)
+  if (appointments.length === 1) {
+     const match = appointments[0];
+     return {
+      id: String(match.id),
+      studentId: String(match.student_id),
+      studentIdNumber: match.student_id_number,
+      studentName: match.student_name,
+      section: match.section,
+      parentPhoneNumber: match.parent_phone_number,
+      hasConsent: match.has_consent,
+      counselorId: String(match.counselor_id),
+      counselorName: match.counselor_name,
+      date: match.date,
+      time: match.time,
+      reason: match.reason,
+      description: match.description || '',
+      status: match.status,
+      createdAt: match.created_at
+    };
+  }
+
+  return null;
+};
+
 export const saveAppointment = async (appointment: Appointment): Promise<Appointment | null> => {
   // FINAL SAFETY CHECK: Check if the student already has an appointment at this time
   const { data: studentConflicts } = await supabase
@@ -223,7 +294,7 @@ export const saveAppointment = async (appointment: Appointment): Promise<Appoint
 export const updateAppointmentStatus = async (id: string, status: AppointmentStatus): Promise<void> => {
   const { data: appt } = await supabase.from('appointments').select('*').eq('id', id).single();
   
-  if (status === AppointmentStatus.CANCELLED && appt) {
+  if ((status === AppointmentStatus.CANCELLED || status === AppointmentStatus.DENIED) && appt) {
      await updateSlotStatus(appt.counselor_id, appt.date, appt.time, false);
   }
 
@@ -239,6 +310,8 @@ export const updateAppointmentStatus = async (id: string, status: AppointmentSta
     if (status === AppointmentStatus.CONFIRMED) msg = `Your appointment on ${appt.date} has been CONFIRMED by Counselor ${appt.counselor_name}.`;
     if (status === AppointmentStatus.CANCELLED) msg = `Your appointment on ${appt.date} was CANCELLED.`;
     if (status === AppointmentStatus.COMPLETED) msg = `Your session on ${appt.date} has been marked COMPLETED.`;
+    if (status === AppointmentStatus.ACCEPTED) msg = `Your entry request has been APPROVED. Please proceed to the Guidance Office.`;
+    if (status === AppointmentStatus.DENIED) msg = `Your entry request was DENIED.`;
     
     if (msg) {
       await createNotification(appt.student_id, msg);

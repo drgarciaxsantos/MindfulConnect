@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, LayoutDashboard, Calendar, FileText, CalendarPlus, CalendarCheck, Bell, Check, ArrowRight } from 'lucide-react';
+import { LogOut, LayoutDashboard, Calendar, FileText, CalendarPlus, CalendarCheck, Bell, Check, ArrowRight, ShieldCheck } from 'lucide-react';
 import { checkAndSendReminders } from '../services/storageService';
 import { useNotification } from './Notifications';
 
@@ -185,6 +185,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
           <nav className="space-y-1.5">
             {[
               { id: 'appointments', label: 'Appointments', icon: LayoutDashboard },
+              { id: 'verification', label: 'Gate Access', icon: ShieldCheck },
               { id: 'availability', label: 'Availability', icon: Calendar },
               { id: 'reports', label: 'Reports', icon: FileText },
             ].map(item => (
