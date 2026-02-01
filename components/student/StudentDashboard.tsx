@@ -1,11 +1,19 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Appointment, AppointmentStatus, DayAvailability } from '../../types';
 import { saveAppointment, getCounselorAvailability, getAppointments, getCounselors, updateAppointmentStatus, subscribeToAppointments, studentRespondToTransfer, studentRespondToReschedule } from '../../services/storageService';
 import { Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Download, QrCode, X, MapPin, User as UserIcon, Smile, Trash2, AlertTriangle, ArrowRightLeft, RefreshCw } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, startOfToday } from 'date-fns';
+import { format, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
 import QRCode from 'react-qr-code';
 import { useNotification } from '../Notifications';
+
+// Polyfills for missing date-fns exports
+const parseISO = (str: string) => new Date(str.includes('T') ? str : str + 'T00:00:00');
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 
 interface StudentDashboardProps {
   user: User;
@@ -66,12 +74,18 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
   }, [selectedCounselorId]);
 
   const loadData = async () => {
-    const counselorList = await getCounselors();
-    setCounselors(counselorList);
+    try {
+      const counselorList = await getCounselors();
+      setCounselors(counselorList);
 
-    const all = await getAppointments();
-    const mine = all.filter(a => a.studentId === user.id);
-    setAppointments(mine.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      const all = await getAppointments();
+      // Ensure we compare strings to avoid type mismatch (e.g. "105" vs 105)
+      const currentUserId = String(user.id);
+      const mine = all.filter(a => String(a.studentId) === currentUserId);
+      setAppointments(mine.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    } catch (e) {
+      console.error("Error loading student data:", e);
+    }
   };
 
   // Check for conflicts with existing appointments
@@ -116,11 +130,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
       return;
     }
 
-    const counselor = counselors.find(c => c.id === selectedCounselorId);
+    const counselor = counselors.find(c => String(c.id) === selectedCounselorId);
     
     const newAppointmentRequest: Appointment = {
       id: '', 
-      studentId: user.id,
+      studentId: String(user.id),
       studentName: user.name,
       studentIdNumber,
       section,

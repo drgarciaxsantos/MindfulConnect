@@ -1,11 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Appointment, AppointmentStatus } from '../../types';
 import { getAppointments } from '../../services/storageService';
 import { Download, Users, CheckCircle, Clock, FileText, FileDown } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+// Polyfill for parseISO
+const parseISO = (str: string) => new Date(str.includes('T') ? str : str + 'T00:00:00');
 
 interface CounselorReportsProps {
   user: User;

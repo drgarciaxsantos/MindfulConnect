@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Appointment, AppointmentStatus } from '../../types';
 import { getAppointments, updateAppointmentStatus } from '../../services/storageService';
 import { ShieldCheck, CheckCircle, XCircle, Clock, MapPin, User as UserIcon, RefreshCw, Filter } from 'lucide-react';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { useNotification } from '../Notifications';
 
 interface VerificationTabProps {

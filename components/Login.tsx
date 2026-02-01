@@ -43,7 +43,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           setError('Invalid Student ID or Password. Please check your credentials.');
         } else {
           onLogin({
-            id: data.id,
+            id: String(data.id), // Ensure ID is string
             name: data.name,
             role: UserRole.STUDENT,
             studentIdNumber: data.student_id_number,
@@ -73,7 +73,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             await supabase.auth.signOut();
           } else {
              onLogin({
-               id: profile.id,
+               id: String(profile.id), // Ensure ID is string
                name: profile.name,
                role: UserRole.COUNSELOR,
                email: profile.email

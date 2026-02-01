@@ -1,9 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, DayAvailability } from '../../types';
 import { getCounselorAvailability, saveAvailability } from '../../services/storageService';
 import { Plus, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
-import { format, addDays, startOfToday, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, getDay, isSameDay } from 'date-fns';
+import { format, addDays, endOfMonth, eachDayOfInterval, addMonths, getDay, isSameDay } from 'date-fns';
+
+// Polyfills for missing date-fns exports
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 
 interface AvailabilityManagerProps {
   user: User;
