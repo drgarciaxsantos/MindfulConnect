@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, Appointment, AppointmentStatus, DayAvailability } from '../../types';
 import { getAppointments, updateAppointmentStatus, rescheduleAppointment, cancelRescheduleProposal, getCounselorAvailability, subscribeToAppointments, getCounselors, initiateTransfer, respondToTransfer, cancelTransfer } from '../../services/storageService';
-import { Calendar, Clock, CheckCircle, XCircle, Phone, Hash, BookOpen, CalendarDays, RefreshCw, ArrowRightLeft, UserCheck, Loader2, X, Search, SortAsc, SortDesc, RefreshCcw, ChevronLeft, ChevronRight, Ban, ShieldCheck } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Phone, Hash, BookOpen, CalendarDays, RefreshCw, ArrowRightLeft, UserCheck, Loader2, X, Search, SortAsc, SortDesc, ChevronLeft, ChevronRight, Ban } from 'lucide-react';
 import AvailabilityManager from './AvailabilityManager';
 import { format, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
 import { useNotification } from '../Notifications';
@@ -527,7 +527,6 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                         )}
                         {app.status === AppointmentStatus.CONFIRMED && (
                            <>
-                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.ACCEPTED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-colors"><UserCheck size={16} /> Allow Entry</button>
                              <button onClick={() => handleStatusChange(app.id, AppointmentStatus.COMPLETED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 shadow-sm transition-colors"><CheckCircle size={16} /> Complete</button>
                            </>
                         )}
