@@ -583,7 +583,10 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                            </>
                         )}
                         {app.status === AppointmentStatus.CONFIRMED && (
-                           <button onClick={() => handleStatusChange(app.id, AppointmentStatus.COMPLETED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 shadow-sm transition-colors"><CheckCircle size={16} /> Complete</button>
+                           <>
+                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.ACCEPTED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-colors"><UserCheck size={16} /> Allow Entry</button>
+                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.COMPLETED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 shadow-sm transition-colors"><CheckCircle size={16} /> Complete</button>
+                           </>
                         )}
                         
                         {(app.status === AppointmentStatus.PENDING || app.status === AppointmentStatus.CONFIRMED) && !app.transferRequestToId && !app.rescheduleProposedDate && (

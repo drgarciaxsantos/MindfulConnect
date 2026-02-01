@@ -128,6 +128,9 @@ CREATE TABLE IF NOT EXISTS public.availability (
 );
 
 -- 10. HELPER FUNCTION FOR AUTHENTICATOR
+-- Drop function first to allow return type changes
+DROP FUNCTION IF EXISTS get_nfc_appointment(text);
+
 CREATE OR REPLACE FUNCTION get_nfc_appointment(scan_nfc_uid text)
 RETURNS TABLE (
     appointment_id uuid,
