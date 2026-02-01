@@ -58,9 +58,6 @@ export interface Appointment {
   status: AppointmentStatus;
   createdAt: string;
 
-  // Gate Request Field (Avoids adding 'VERIFYING' status)
-  isVerifying?: boolean;
-
   // Transfer fields
   transferRequestToId?: string | null;
   transferRequestToName?: string | null;

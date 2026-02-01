@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS public.appointments (
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 7. Add Missing Columns (Transfers, Rescheduling, Verification)
+-- 7. Add Missing Columns (Transfers, Rescheduling)
 DO $$
 BEGIN
     ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS transfer_request_to_id uuid;
@@ -95,9 +95,6 @@ BEGIN
     ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS transfer_student_accepted boolean DEFAULT false;
     ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS reschedule_proposed_date text;
     ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS reschedule_proposed_time text;
-    
-    -- New column for Gate Request
-    ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS is_verifying boolean DEFAULT false;
     
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'appointments_status_fkey') THEN
         ALTER TABLE public.appointments 

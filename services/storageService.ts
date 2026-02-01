@@ -62,7 +62,6 @@ export const getAppointments = async (): Promise<Appointment[]> => {
     description: d.description || '',
     status: d.status,
     createdAt: d.created_at,
-    isVerifying: d.is_verifying, // Map new column
     transferRequestToId: d.transfer_request_to_id ? String(d.transfer_request_to_id) : null,
     transferRequestToName: d.transfer_request_to_name,
     transferCounselorAccepted: d.transfer_counselor_accepted,
@@ -194,8 +193,7 @@ export const findVerificationCandidate = async (counselorId: string, message: st
       reason: match.reason,
       description: match.description || '',
       status: match.status,
-      createdAt: match.created_at,
-      isVerifying: match.is_verifying
+      createdAt: match.created_at
     };
   }
 
@@ -217,8 +215,7 @@ export const findVerificationCandidate = async (counselorId: string, message: st
       reason: match.reason,
       description: match.description || '',
       status: match.status,
-      createdAt: match.created_at,
-      isVerifying: match.is_verifying
+      createdAt: match.created_at
     };
   }
 
@@ -290,8 +287,7 @@ export const saveAppointment = async (appointment: Appointment): Promise<Appoint
     reason: data.reason,
     description: data.description,
     status: data.status,
-    createdAt: data.created_at,
-    isVerifying: data.is_verifying
+    createdAt: data.created_at
   };
 };
 
@@ -303,11 +299,6 @@ export const updateAppointmentStatus = async (id: string, status: AppointmentSta
   }
 
   const updates: any = { status };
-  
-  // Clear verifying flag if status changes to Accepted or Denied
-  if (status === AppointmentStatus.ACCEPTED || status === AppointmentStatus.DENIED) {
-    updates.is_verifying = false;
-  }
 
   const { error } = await supabase
     .from('appointments')

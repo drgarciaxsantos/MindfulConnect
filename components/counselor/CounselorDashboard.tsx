@@ -145,8 +145,6 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
 
   const filteredAndSortedAppointments = useMemo(() => {
     let result = appointments.filter(a => {
-      // Gate requests are handled separately at the top, exclude them from main list if you want, 
-      // but keeping them sorted here is fine as long as we render the special section first.
       const matchesFilter = filter === 'all' || a.status === filter;
       const studentName = (a.studentName || '').toLowerCase();
       const studentId = (a.studentIdNumber || '').toLowerCase();
@@ -173,8 +171,6 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
 
     return result;
   }, [appointments, filter, searchQuery, sortBy, sortOrder]);
-
-  const gateRequests = appointments.filter(a => a.isVerifying);
 
   const toggleSort = (field: SortField) => {
     if (sortBy === field) {
@@ -312,57 +308,6 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
         </div>
       </header>
 
-      {/* Gate Requests Section */}
-      {gateRequests.length > 0 && (
-        <div className="animate-in fade-in slide-in-from-top-4">
-           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-t-xl flex items-center gap-3 text-white shadow-lg relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-64 h-full bg-white/10 skew-x-12 -mr-16"></div>
-             <ShieldCheck size={24} strokeWidth={2.5} className="animate-pulse" />
-             <div>
-               <h3 className="font-bold text-lg leading-none">Gate Requests</h3>
-               <p className="text-indigo-100 text-xs mt-1 font-medium">Students requesting entry right now</p>
-             </div>
-             <div className="ml-auto bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
-               {gateRequests.length} Waiting
-             </div>
-           </div>
-           <div className="bg-white border-x border-b border-indigo-200 rounded-b-xl shadow-lg p-4 grid gap-4">
-              {gateRequests.map(req => (
-                 <div key={req.id} className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-indigo-100 text-2xl">
-                         👋
-                       </div>
-                       <div>
-                          <h4 className="font-bold text-slate-900 text-lg">{req.studentName}</h4>
-                          <p className="text-slate-600 text-sm">{req.time} • {req.reason}</p>
-                          <div className="flex gap-2 mt-1">
-                             <span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded border border-indigo-100 text-indigo-600 uppercase tracking-wide">
-                               ID: {req.studentIdNumber || 'N/A'}
-                             </span>
-                          </div>
-                       </div>
-                    </div>
-                    <div className="flex gap-3 w-full md:w-auto">
-                       <button 
-                         onClick={() => handleStatusChange(req.id, AppointmentStatus.ACCEPTED)}
-                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md shadow-emerald-200 transition-all active:scale-95"
-                       >
-                         <CheckCircle size={18} /> Allow Entry
-                       </button>
-                       <button 
-                         onClick={() => handleStatusChange(req.id, AppointmentStatus.DENIED)}
-                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white hover:bg-red-50 text-red-600 border border-red-200 font-bold rounded-lg transition-all active:scale-95"
-                       >
-                         <XCircle size={18} /> Deny
-                       </button>
-                    </div>
-                 </div>
-              ))}
-           </div>
-        </div>
-      )}
-
       {transferModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white w-full max-w-sm rounded-xl p-6 shadow-2xl animate-in zoom-in-95">
@@ -388,7 +333,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
       )}
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredAndSortedAppointments.length === 0 && gateRequests.length === 0 ? (
+        {filteredAndSortedAppointments.length === 0 ? (
           <div className="bg-white p-12 rounded-xl border border-dashed border-slate-300 text-center text-slate-500">
             <Search className="w-12 h-12 mx-auto mb-4 text-slate-300" />
             <p className="font-medium text-slate-600">No appointments found.</p>
@@ -396,8 +341,6 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
           </div>
         ) : (
           filteredAndSortedAppointments.map(app => (
-            // Skip rendering if it's already shown in gate requests section
-            app.isVerifying ? null :
             <div key={app.id} className={`rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow relative ${app.transferRequestToId && String(app.transferRequestToId).toLowerCase() === String(user.id).toLowerCase() ? 'bg-purple-50 border-purple-200' : 'bg-white border-slate-200'}`}>
               {(app.transferRequestToId && String(app.transferRequestToId).toLowerCase() === String(user.id).toLowerCase()) && (
                 <div className="bg-purple-600 text-white text-[10px] font-bold px-4 py-1.5 flex items-center justify-between uppercase tracking-widest">
