@@ -160,9 +160,10 @@ BEGIN
     FROM public.appointments a
     JOIN public.students s ON a.student_id = s.id
     WHERE s.nfc_uid = scan_nfc_uid
-      AND a.date = to_char(now(), 'YYYY-MM-DD')
+      AND a.date = to_char(now() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD')
       AND a.status IN ('PENDING', 'CONFIRMED')
-      AND now()::timestamp >= ((a.date || ' ' || a.time)::timestamp - interval '15 minutes');
+      -- RESTRICTION: Current Time (PH) must be >= Appointment Time - 15 minutes
+      AND (now() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::timestamp >= ((a.date || ' ' || a.time)::timestamp - interval '15 minutes');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -193,6 +194,7 @@ VALUES
 ON CONFLICT (email) DO NOTHING;
 
 -- 12. GENERATE TEST APPOINTMENT
+-- Uses Asia/Manila time to match the logic in get_nfc_appointment
 INSERT INTO public.appointments (
   student_id, student_id_number, student_name, section, 
   counselor_id, counselor_name, 
@@ -201,8 +203,8 @@ INSERT INTO public.appointments (
 SELECT 
   s.id, s.student_id_number, s.name, s.section,
   c.id, c.name,
-  to_char(now(), 'YYYY-MM-DD'),
-  to_char(now(), 'HH24:MI'), -- Changed to 24h format to match frontend input
+  to_char(now() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD'),
+  to_char(now() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila', 'HH24:MI'),
   'NFC Gate Verification Test',
   'VERIFYING',
   'Jem Palaganas'
@@ -212,10 +214,10 @@ AND c.email = 'wackylooky@gmail.com'
 AND NOT EXISTS (
     SELECT 1 FROM public.appointments a 
     WHERE a.student_id = s.id 
-      AND a.date = to_char(now(), 'YYYY-MM-DD')
+      AND a.date = to_char(now() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD')
 );
 
--- 13. AUTOMATED SYNC TRIGGERS (Ensures Availability matches Appointments)
+-- 13. AUTOMATED SYNC TRIGGERS
 
 CREATE OR REPLACE FUNCTION update_availability_slot(
   p_counselor_id uuid,
@@ -285,9 +287,6 @@ AFTER INSERT OR UPDATE OR DELETE ON public.appointments
 FOR EACH ROW EXECUTE FUNCTION sync_appointment_to_availability();
 
 -- 14. DATA RE-SYNC SCRIPT
--- Re-syncs availability based on current appointments.
--- Uses 24h format matching logic.
-
 WITH expanded_slots AS (
     SELECT 
         a.id AS avail_id,
@@ -329,3 +328,62 @@ UPDATE public.availability a
 SET slots = rs.new_slots
 FROM reconstructed_slots rs
 WHERE a.id = rs.avail_id;
+
+
+-- 15. MANUAL DATA SEEDING (Specific Slots Requested)
+DO $$
+DECLARE
+    mj_id uuid;
+    eliz_id uuid;
+    sharah_id uuid;
+    s_id uuid;
+    s_num text;
+    s_name text;
+    s_sec text;
+BEGIN
+    SELECT id INTO mj_id FROM public.counselors WHERE email = 'tlga.ashlyespina@gmail.com';
+    SELECT id INTO eliz_id FROM public.counselors WHERE email = 'spnashly@gmail.com';
+    SELECT id INTO sharah_id FROM public.counselors WHERE email = 'wackylooky@gmail.com';
+    
+    SELECT id, student_id_number, name, section 
+    INTO s_id, s_num, s_name, s_sec
+    FROM public.students LIMIT 1;
+
+    -- Mary Jane M. Lalamunan: Dec 8, 2025 -> 9am, 12pm
+    INSERT INTO public.availability (counselor_id, date, slots)
+    VALUES (mj_id, '2025-12-08', '[
+        {"id": "2025-12-08-09:00", "time": "09:00", "isBooked": true},
+        {"id": "2025-12-08-12:00", "time": "12:00", "isBooked": true}
+    ]'::jsonb)
+    ON CONFLICT (counselor_id, date) DO UPDATE SET slots = EXCLUDED.slots;
+
+    INSERT INTO public.appointments (student_id, student_id_number, student_name, section, counselor_id, counselor_name, date, time, reason, status)
+    VALUES 
+    (s_id, s_num, s_name, s_sec, mj_id, 'Ms. Mary Jane M. Lalamunan', '2025-12-08', '09:00', 'Manual Booking', 'CONFIRMED'),
+    (s_id, s_num, s_name, s_sec, mj_id, 'Ms. Mary Jane M. Lalamunan', '2025-12-08', '12:00', 'Manual Booking', 'CONFIRMED')
+    ON CONFLICT DO NOTHING;
+
+    -- Elizabeth T. Cape: Jan 21, 2026 -> 9am
+    INSERT INTO public.availability (counselor_id, date, slots)
+    VALUES (eliz_id, '2026-01-21', '[
+        {"id": "2026-01-21-09:00", "time": "09:00", "isBooked": true}
+    ]'::jsonb)
+    ON CONFLICT (counselor_id, date) DO UPDATE SET slots = EXCLUDED.slots;
+
+    INSERT INTO public.appointments (student_id, student_id_number, student_name, section, counselor_id, counselor_name, date, time, reason, status)
+    VALUES 
+    (s_id, s_num, s_name, s_sec, eliz_id, 'Ms. Elizabeth T. Cape', '2026-01-21', '09:00', 'Manual Booking', 'CONFIRMED')
+    ON CONFLICT DO NOTHING;
+
+    -- Sharah Manangguit: Dec 8, 2025 -> 12pm
+    INSERT INTO public.availability (counselor_id, date, slots)
+    VALUES (sharah_id, '2025-12-08', '[
+        {"id": "2025-12-08-12:00", "time": "12:00", "isBooked": true}
+    ]'::jsonb)
+    ON CONFLICT (counselor_id, date) DO UPDATE SET slots = EXCLUDED.slots;
+
+    INSERT INTO public.appointments (student_id, student_id_number, student_name, section, counselor_id, counselor_name, date, time, reason, status)
+    VALUES 
+    (s_id, s_num, s_name, s_sec, sharah_id, 'Ms. Christina Sharah K. Manangguit', '2025-12-08', '12:00', 'Manual Booking', 'CONFIRMED')
+    ON CONFLICT DO NOTHING;
+END $$;
