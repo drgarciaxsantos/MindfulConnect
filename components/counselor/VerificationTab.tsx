@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Appointment, AppointmentStatus } from '../../types';
 import { getAppointments, updateAppointmentStatus } from '../../services/storageService';
-import { ShieldCheck, CheckCircle, XCircle, Clock, MapPin, User as UserIcon, RefreshCw, Filter, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, Clock, MapPin, User as UserIcon, RefreshCw, Filter, AlertTriangle, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNotification } from '../Notifications';
 import VerificationModal from './VerificationModal';
@@ -181,19 +181,29 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
               </div>
 
               {activeFilter === 'requests' && (
-                <div className="p-4 md:p-6 bg-slate-50 flex flex-row md:flex-col gap-3 justify-center md:border-l border-slate-100 md:w-48">
+                <div className="p-4 md:p-6 bg-slate-50 flex flex-col gap-2 justify-center md:border-l border-slate-100 md:w-48">
                   <button
-                    onClick={() => handleDecision(appt, AppointmentStatus.ACCEPTED)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95"
+                    onClick={() => setSelectedAppt(appt)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors shadow-sm"
                   >
-                    <CheckCircle size={18} /> Allow
+                    <Eye size={16} /> Review
                   </button>
-                  <button
-                    onClick={() => handleDecision(appt, AppointmentStatus.DENIED)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-red-100 text-red-600 rounded-xl font-bold hover:bg-red-50 hover:border-red-200 transition-all active:scale-95"
-                  >
-                    <XCircle size={18} /> Deny
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDecision(appt, AppointmentStatus.ACCEPTED)}
+                      className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-200 transition-colors"
+                      title="Quick Allow"
+                    >
+                      <CheckCircle size={16} /> Allow
+                    </button>
+                    <button
+                      onClick={() => handleDecision(appt, AppointmentStatus.DENIED)}
+                      className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors"
+                      title="Quick Deny"
+                    >
+                      <XCircle size={16} /> Deny
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
