@@ -251,7 +251,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
             {[
               { id: 'appointments', label: 'Appointments', icon: LayoutDashboard },
               { id: 'availability', label: 'Availability', icon: Calendar },
-              { id: 'verification', label: 'Gate Requests', icon: ShieldCheck },
               { id: 'reports', label: 'Reports', icon: FileText },
             ].map(item => (
               <button

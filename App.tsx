@@ -6,7 +6,6 @@ import Layout from './components/Layout';
 import StudentDashboard from './components/student/StudentDashboard';
 import CounselorDashboard from './components/counselor/CounselorDashboard';
 import CounselorReports from './components/counselor/CounselorReports';
-import VerificationTab from './components/counselor/VerificationTab';
 import NotificationCenter from './components/NotificationCenter';
 import { initMockData } from './services/storageService';
 import { NotificationProvider, useNotification } from './components/Notifications';
@@ -65,7 +64,6 @@ const AppContent: React.FC<{
         <>
           {activeTab === 'appointments' && <CounselorDashboard user={user} activeTab={activeTab} />}
           {activeTab === 'availability' && <CounselorDashboard user={user} activeTab={activeTab} />}
-          {activeTab === 'verification' && <VerificationTab user={user} />}
           {activeTab === 'reports' && <CounselorReports user={user} />}
         </>
       )}
