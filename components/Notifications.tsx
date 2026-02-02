@@ -1,9 +1,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { X, CheckCircle, AlertCircle, Info, ShieldCheck, UserCheck, XCircle } from 'lucide-react';
-import { SystemNotification, User, Appointment, AppointmentStatus } from '../types';
-import { getSystemNotifications, markNotificationRead, markAllNotificationsRead, findVerificationCandidate, updateAppointmentStatus } from '../services/storageService';
-import { supabase } from '../services/supabaseClient';
+import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { SystemNotification, User } from '../types';
+import { getSystemNotifications, markNotificationRead, markAllNotificationsRead } from '../services/storageService';
 
 export type NotificationType = 'success' | 'error' | 'info';
 
@@ -32,16 +31,10 @@ export const useNotification = () => {
 };
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Toast notifications (UI alerts)
   const [toasts, setToasts] = useState<Toast[]>([]);
-  
-  // System notifications (from database)
   const [user, setInternalUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const isFetching = useRef(false);
-
-  // Gatekeeper Verification State
-  const [verificationRequest, setVerificationRequest] = useState<Appointment | null>(null);
 
   const setUser = useCallback((newUser: User | null) => {
     setInternalUser(newUser);
@@ -61,18 +54,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [user]);
 
   const markAsRead = useCallback(async (id: string) => {
-    // Optimistic UI update
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
     await markNotificationRead(id);
   }, []);
 
   const markAllAsRead = useCallback(async () => {
     if (!user) return;
-    // Optimistic UI update
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     await markAllNotificationsRead(user.id);
     showNotification('All notifications marked as read', 'success');
-  }, [user]);
+  }, [user, refreshNotifications]);
 
   const showNotification = useCallback((message: string, type: NotificationType) => {
     const id = Date.now().toString();
@@ -86,62 +77,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  const handleVerificationDecision = async (accepted: boolean) => {
-    if (!verificationRequest) return;
-    
-    // Optimistically close modal
-    const apptId = verificationRequest.id;
-    setVerificationRequest(null);
-    
-    if (accepted) {
-      await updateAppointmentStatus(apptId, AppointmentStatus.ACCEPTED);
-      showNotification('Student Entry APPROVED', 'success');
-    } else {
-      await updateAppointmentStatus(apptId, AppointmentStatus.DENIED);
-      showNotification('Student Entry DENIED', 'info');
-    }
-  };
-
-  // Setup real-time listener and initial fetch
   useEffect(() => {
     if (user) {
       refreshNotifications();
-
-      const channel = supabase
-        .channel(`global_notifs_${user.id}`)
-        .on('postgres_changes', 
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          }, 
-          async (payload) => {
-             refreshNotifications();
-             
-             // High Priority Verification Check
-             const newNotif = payload.new as SystemNotification;
-             if (newNotif.message && newNotif.message.includes('VERIFICATION REQUEST')) {
-                const pendingAppt = await findVerificationCandidate(user.id, newNotif.message);
-                if (pendingAppt) {
-                  setVerificationRequest(pendingAppt);
-                  // Play alert sound if possible, or just rely on the modal
-                }
-             }
-          }
-        )
-        .subscribe();
-
-      // Poll as fallback every 60s
-      const poll = setInterval(refreshNotifications, 60000);
-
-      return () => {
-        supabase.removeChannel(channel);
-        clearInterval(poll);
-      };
-    } else {
-      setNotifications([]);
-      setVerificationRequest(null);
+      const interval = setInterval(refreshNotifications, 60000);
+      return () => clearInterval(interval);
     }
   }, [user, refreshNotifications]);
 
@@ -158,80 +98,26 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setUser
     }}>
       {children}
-      
-      {/* Toast Container */}
-      <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
-        {toasts.map(t => (
-          <div
-            key={t.id}
-            className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white transition-all animate-in slide-in-from-right-5 fade-in duration-300 ${
-              t.type === 'success' ? 'bg-emerald-600' :
-              t.type === 'error' ? 'bg-red-600' :
-              'bg-blue-600'
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-xs px-4">
+        {toasts.map(toast => (
+          <div 
+            key={toast.id} 
+            className={`flex items-center gap-3 p-4 rounded-xl shadow-lg border animate-in slide-in-from-bottom-4 duration-300 ${
+              toast.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
+              toast.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' :
+              'bg-blue-50 border-blue-100 text-blue-800'
             }`}
           >
-            {t.type === 'success' && <CheckCircle size={18} />}
-            {t.type === 'error' && <AlertCircle size={18} />}
-            {t.type === 'info' && <Info size={18} />}
-            <span className="text-sm font-medium">{t.message}</span>
-            <button onClick={() => removeToast(t.id)} className="ml-2 hover:bg-white/20 rounded p-0.5 transition-colors">
+            {toast.type === 'success' && <CheckCircle size={18} />}
+            {toast.type === 'error' && <AlertCircle size={18} />}
+            {toast.type === 'info' && <Info size={18} />}
+            <p className="text-sm font-medium flex-1">{toast.message}</p>
+            <button onClick={() => removeToast(toast.id)} className="p-1 hover:bg-black/5 rounded">
               <X size={14} />
             </button>
           </div>
         ))}
       </div>
-
-      {/* Gatekeeper Verification Modal */}
-      {verificationRequest && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
-            <div className="bg-indigo-600 p-6 text-white text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
-              <ShieldCheck className="mx-auto mb-3" size={48} strokeWidth={1.5} />
-              <h2 className="text-2xl font-bold tracking-tight">Verification Request</h2>
-              <p className="text-indigo-100 mt-1 text-sm font-medium">A student is requesting entry at the gate.</p>
-            </div>
-            
-            <div className="p-6">
-              <div className="flex flex-col items-center gap-2 mb-8">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-2xl mb-1 shadow-inner border border-slate-200">
-                  👋
-                </div>
-                <h3 className="text-xl font-bold text-slate-900">{verificationRequest.studentName}</h3>
-                <div className="flex gap-2">
-                   <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded uppercase tracking-wide">
-                     {verificationRequest.section || 'N/A'}
-                   </span>
-                   {verificationRequest.studentIdNumber && (
-                     <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded uppercase tracking-wide">
-                       ID: {verificationRequest.studentIdNumber}
-                     </span>
-                   )}
-                </div>
-                <div className="mt-2 text-center">
-                  <p className="text-sm text-slate-500 font-medium">Appointment Details</p>
-                  <p className="text-slate-900 font-semibold">{verificationRequest.time} • {verificationRequest.reason}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button 
-                  onClick={() => handleVerificationDecision(false)}
-                  className="flex items-center justify-center gap-2 py-4 bg-red-50 border border-red-100 text-red-700 rounded-xl font-bold hover:bg-red-100 transition-colors active:scale-[0.98]"
-                >
-                  <XCircle size={20} /> Deny Entry
-                </button>
-                <button 
-                  onClick={() => handleVerificationDecision(true)}
-                  className="flex items-center justify-center gap-2 py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-colors active:scale-[0.98]"
-                >
-                  <UserCheck size={20} /> Allow Entry
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </NotificationContext.Provider>
   );
 };

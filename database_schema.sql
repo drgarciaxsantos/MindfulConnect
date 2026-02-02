@@ -20,10 +20,11 @@ END $$;
 
 -- 2. Clean up conflicts and Insert specific Teacher ID
 DELETE FROM public.teachers WHERE nfc_uid = '04:84:c8:d1:2e:61:80';
-DELETE FROM public.teachers WHERE name = 'Authorized Gatekeeper';
+-- Only delete specific gatekeeper to avoid data loss for other teachers
 
 INSERT INTO public.teachers (name, nfc_uid)
-VALUES ('Authorized Gatekeeper', '04:84:c8:d1:2e:61:80');
+VALUES ('Authorized Gatekeeper', '04:84:c8:d1:2e:61:80')
+ON CONFLICT (nfc_uid) DO NOTHING;
 
 -- 3. Create Students Table
 CREATE TABLE IF NOT EXISTS public.students (
@@ -83,10 +84,11 @@ CREATE TABLE IF NOT EXISTS public.appointments (
   reason text,
   description text,
   status text DEFAULT 'PENDING' REFERENCES public.appointment_statuses(status),
+  is_at_gate boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 7. Add Missing Columns (Transfers, Rescheduling)
+-- 7. Add Missing Columns (Transfers, Rescheduling, Gate Flag)
 DO $$
 BEGIN
     ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS transfer_request_to_id uuid;
@@ -95,6 +97,7 @@ BEGIN
     ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS transfer_student_accepted boolean DEFAULT false;
     ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS reschedule_proposed_date text;
     ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS reschedule_proposed_time text;
+    ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS is_at_gate boolean DEFAULT false;
     
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'appointments_status_fkey') THEN
         ALTER TABLE public.appointments 
@@ -125,7 +128,6 @@ CREATE TABLE IF NOT EXISTS public.availability (
 );
 
 -- 10. HELPER FUNCTION FOR AUTHENTICATOR
--- Drop function first to allow return type changes
 DROP FUNCTION IF EXISTS get_nfc_appointment(text);
 
 CREATE OR REPLACE FUNCTION get_nfc_appointment(scan_nfc_uid text)
@@ -157,6 +159,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 11. Insert Data
+-- Unlink NFCs from any existing users that collide with our seed data to prevent unique constraint errors
 UPDATE public.students SET nfc_uid = NULL WHERE nfc_uid IN ('04:73:29:D2:2E:61:80', '04:E0:28:D6:2E:61:80');
 
 INSERT INTO public.students (student_id_number, password, name, section, parent_phone_number, nfc_uid)
@@ -186,7 +189,7 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO public.appointments (
   student_id, student_id_number, student_name, section, 
   counselor_id, counselor_name, 
-  date, time, reason, status
+  date, time, reason, status, is_at_gate
 )
 SELECT 
   s.id, s.student_id_number, s.name, s.section,
@@ -194,7 +197,8 @@ SELECT
   to_char(now(), 'YYYY-MM-DD'),
   to_char(now(), 'HH12:MI AM'),
   'NFC Gate Verification Test',
-  'CONFIRMED'
+  'CONFIRMED',
+  false
 FROM public.students s, public.counselors c
 WHERE s.student_id_number = '02000385842'
 AND c.email = 'wackylooky@gmail.com'

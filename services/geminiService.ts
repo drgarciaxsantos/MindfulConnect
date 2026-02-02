@@ -1,17 +1,9 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const getAiClient = () => {
-  if (!process.env.API_KEY) {
-    console.error("API_KEY is missing from environment variables");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
-};
-
 export const analyzeStudentReason = async (reason: string, description: string): Promise<string> => {
-  const ai = getAiClient();
-  if (!ai) return "AI analysis unavailable (Missing API Key).";
+  // Always create a new instance right before generating content.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const prompt = `
@@ -42,8 +34,8 @@ export const analyzeStudentReason = async (reason: string, description: string):
 };
 
 export const getStudentSelfHelp = async (reason: string): Promise<string> => {
-  const ai = getAiClient();
-  if (!ai) return "Self-help tips unavailable.";
+  // Always create a new instance right before generating content.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const prompt = `

@@ -18,7 +18,6 @@ export interface User {
   name: string;
   role: UserRole;
   email?: string;
-  // Student specific fields
   studentIdNumber?: string;
   section?: string;
   parentPhoneNumber?: string;
@@ -26,24 +25,19 @@ export interface User {
 
 export interface TimeSlot {
   id: string;
-  time: string; // HH:mm format
+  time: string;
   isBooked: boolean;
 }
 
 export interface DayAvailability {
-  date: string; // YYYY-MM-DD
+  date: string;
   slots: TimeSlot[];
-}
-
-export interface CounselorAvailability {
-  counselorId: string;
-  availability: DayAvailability[];
 }
 
 export interface Appointment {
   id: string;
-  studentId: string; // System ID
-  studentIdNumber: string; // School ID Number
+  studentId: string;
+  studentIdNumber: string;
   studentName: string;
   section: string;
   parentPhoneNumber: string;
@@ -57,6 +51,9 @@ export interface Appointment {
   description: string;
   status: AppointmentStatus;
   createdAt: string;
+
+  // Gate Control
+  isAtGate?: boolean;
 
   // Transfer fields
   transferRequestToId?: string | null;

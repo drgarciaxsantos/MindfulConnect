@@ -64,8 +64,8 @@ const AppContent: React.FC<{
       ) : (
         <>
           {activeTab === 'appointments' && <CounselorDashboard user={user} activeTab={activeTab} />}
-          {activeTab === 'verification' && <VerificationTab user={user} />}
           {activeTab === 'availability' && <CounselorDashboard user={user} activeTab={activeTab} />}
+          {activeTab === 'verification' && <VerificationTab user={user} />}
           {activeTab === 'reports' && <CounselorReports user={user} />}
         </>
       )}
