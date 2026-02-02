@@ -69,6 +69,13 @@ INSERT INTO public.appointment_statuses (status) VALUES
 ('VERIFYING')
 ON CONFLICT (status) DO NOTHING;
 
+-- Data Migration: Convert old statuses to new ones
+UPDATE public.appointments SET status = 'CONFIRMED' WHERE status = 'ACCEPTED';
+UPDATE public.appointments SET status = 'CANCELLED' WHERE status = 'DENIED';
+
+-- Cleanup: Remove old statuses if they exist
+DELETE FROM public.appointment_statuses WHERE status IN ('ACCEPTED', 'DENIED');
+
 -- 6. Create Appointments Table
 CREATE TABLE IF NOT EXISTS public.appointments (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),

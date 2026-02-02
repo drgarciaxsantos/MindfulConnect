@@ -51,10 +51,10 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
     let type: 'success' | 'info' = 'info';
 
     if (status === AppointmentStatus.CONFIRMED) {
-      message = 'Entry Approved';
+      message = 'Entry Confirmed';
       type = 'success';
     } else if (status === AppointmentStatus.CANCELLED) {
-      message = 'Entry Denied';
+      message = 'Entry Cancelled';
       type = 'info';
     }
 
@@ -65,8 +65,8 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
   // Filter for VERIFYING (At Gate) requests - High Priority
   const gateRequests = appointments.filter(a => a.status === AppointmentStatus.VERIFYING);
   
-  // History items - includes CANCELLED (Denied) and COMPLETED. 
-  // Note: CONFIRMED (Approved) items are active and will show in main dashboard, not necessarily "History" here unless we want to track them specifically.
+  // History items - includes CANCELLED and COMPLETED. 
+  // Note: CONFIRMED items are active and will show in main dashboard.
   const historyList = appointments.filter(a => 
     a.status === AppointmentStatus.COMPLETED || 
     a.status === AppointmentStatus.CANCELLED
@@ -111,7 +111,7 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
           <p className="text-4xl font-black">{gateRequests.length}</p>
         </div>
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-emerald-600 font-bold text-xs uppercase tracking-wider mb-1">Entries Approved</p>
+          <p className="text-emerald-600 font-bold text-xs uppercase tracking-wider mb-1">Entries Confirmed</p>
           <p className="text-3xl font-bold text-slate-800">{appointments.filter(a => a.status === AppointmentStatus.CONFIRMED).length}</p>
         </div>
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -216,16 +216,16 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                     <button
                       onClick={() => handleDecision(appt, AppointmentStatus.CONFIRMED)}
                       className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-200 transition-colors"
-                      title="Quick Allow"
+                      title="Quick Confirm"
                     >
-                      <CheckCircle size={16} /> Allow
+                      <CheckCircle size={16} /> Confirm
                     </button>
                     <button
                       onClick={() => handleDecision(appt, AppointmentStatus.CANCELLED)}
                       className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors"
-                      title="Quick Deny"
+                      title="Quick Cancel"
                     >
-                      <XCircle size={16} /> Deny
+                      <XCircle size={16} /> Cancel
                     </button>
                   </div>
                 </div>

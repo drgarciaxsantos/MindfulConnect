@@ -96,18 +96,18 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
               onClick={() => handleDecision(AppointmentStatus.CONFIRMED)}
               className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-[0.98] transition-all"
             >
-              <CheckCircle size={24} /> ACCEPT
+              <CheckCircle size={24} /> CONFIRM
             </button>
             <button
               onClick={() => handleDecision(AppointmentStatus.CANCELLED)}
               className="w-full flex items-center justify-center gap-3 py-3 bg-white border-2 border-red-100 text-red-600 rounded-2xl font-bold hover:bg-red-50 active:scale-[0.98] transition-all"
             >
-              <XCircle size={20} /> DENY
+              <XCircle size={20} /> CANCEL
             </button>
           </div>
 
           <p className="text-center text-slate-400 text-[10px] font-medium italic">
-            Please verify the student's appointment details before accepting or denying.
+            Please verify the student's appointment details before confirming or cancelling.
           </p>
         </div>
       </div>
