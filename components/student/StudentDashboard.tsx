@@ -2,9 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Appointment, AppointmentStatus, DayAvailability } from '../../types';
 import { saveAppointment, getCounselorAvailability, getAppointments, getCounselors, updateAppointmentStatus, subscribeToAppointments, studentRespondToTransfer, studentRespondToReschedule } from '../../services/storageService';
-import { Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Download, QrCode, X, MapPin, User as UserIcon, Smile, Trash2, AlertTriangle, ArrowRightLeft, RefreshCw } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, X, MapPin, User as UserIcon, Smile, Trash2, AlertTriangle, ArrowRightLeft, RefreshCw } from 'lucide-react';
 import { format, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
-import QRCode from 'react-qr-code';
 import { useNotification } from '../Notifications';
 
 // Polyfills for missing date-fns exports
@@ -44,7 +43,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
   const [lastBookedAppointment, setLastBookedAppointment] = useState<Appointment | null>(null);
   const [currentMonth, setCurrentMonth] = useState(startOfToday());
   const [availableDates, setAvailableDates] = useState<DayAvailability[]>([]);
-  const [viewingQrFor, setViewingQrFor] = useState<Appointment | null>(null);
   const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
 
   useEffect(() => {
@@ -195,24 +193,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
     loadData();
   };
 
-  const downloadAppointmentDetails = (appt: Appointment) => {
-    const content = `
-Student: ${appt.studentName}
-Date: ${appt.date}
-Time: ${appt.time}
-Status: ${appt.status}
-`.trim();
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Appointment-${appt.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   const resetForm = () => {
     setIsSuccess(false);
     setLastBookedAppointment(null);
@@ -244,61 +224,6 @@ Status: ${appt.status}
     return availableDates.find(d => d.date === dateStr)?.slots.filter(s => !s.isBooked) || [];
   };
 
-  const QrModal = ({ appt, onClose }: { appt: Appointment, onClose: () => void }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95">
-        <div className="bg-indigo-600 p-6 text-center text-white relative">
-          <button onClick={onClose} className="absolute top-4 right-4 text-white/80 hover:text-white">
-            <X size={24} />
-          </button>
-          <h3 className="text-xl font-bold">Appointment Pass</h3>
-          <p className="text-indigo-200 text-sm mt-1">{appt.status}</p>
-        </div>
-        <div className="p-8 flex flex-col items-center">
-          <div className="bg-white p-3 rounded-2xl border-2 border-dashed border-slate-200 mb-6">
-            <QRCode
-              value={JSON.stringify({
-                id: appt.id,
-                student: appt.studentName,
-                date: appt.date,
-                time: appt.time,
-                status: appt.status
-              })}
-              size={180}
-              level="M"
-            />
-          </div>
-          <div className="text-center w-full space-y-3 mb-6">
-             <div>
-               <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Date & Time</p>
-               <p className="text-lg font-bold text-slate-800">{format(parseISO(appt.date), 'MMM d, yyyy')} • {appt.time}</p>
-             </div>
-             <div>
-               <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Counselor</p>
-               <p className="text-slate-700 font-medium">{appt.counselorName}</p>
-             </div>
-             <div>
-               <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                 appt.status === AppointmentStatus.PENDING ? 'bg-amber-100 text-amber-800' :
-                 appt.status === AppointmentStatus.CONFIRMED ? 'bg-blue-100 text-blue-800' :
-                 appt.status === AppointmentStatus.COMPLETED ? 'bg-green-100 text-green-800' :
-                 'bg-slate-100 text-slate-800'
-               }`}>
-                 {appt.status}
-               </span>
-             </div>
-          </div>
-          <button 
-            onClick={() => downloadAppointmentDetails(appt)}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-colors"
-          >
-            <Download size={18} /> Download Slip
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   const WelcomeHeader = () => (
      <div className="px-6 pt-6 pb-2">
       <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -315,10 +240,6 @@ Status: ${appt.status}
         <div className="px-4 mt-4">
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 px-2">Your History</h2>
           
-          {viewingQrFor && (
-            <QrModal appt={viewingQrFor} onClose={() => setViewingQrFor(null)} />
-          )}
-
           {appointmentToCancel && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
               <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 p-6">
@@ -444,12 +365,6 @@ Status: ${appt.status}
                        )}
 
                        <div className="flex flex-col gap-2">
-                        <button 
-                          onClick={() => setViewingQrFor(apt)}
-                          className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 font-semibold shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all"
-                        >
-                          <QrCode size={18} className="text-indigo-600" /> View QR Code
-                        </button>
                         {apt.status === AppointmentStatus.PENDING && !isTransferring && !isRescheduling && (
                           <button 
                             onClick={() => handleCancelClick(apt)}
@@ -624,12 +539,12 @@ Status: ${appt.status}
                  <p className="text-emerald-100 mt-2 text-sm">Your session is confirmed.</p>
                </div>
                <div className="p-8 flex flex-col items-center">
-                 <div className="bg-white p-2 rounded-xl border-2 border-dashed border-slate-200 mb-6 shadow-sm">
-                   <QRCode value={JSON.stringify({ id: lastBookedAppointment.id, student: lastBookedAppointment.studentName, date: lastBookedAppointment.date, time: lastBookedAppointment.time, status: lastBookedAppointment.status })} size={140} level="M" />
+                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-6 w-full text-center">
+                    <p className="text-sm font-bold text-slate-700 mb-1">Appointment ID</p>
+                    <p className="text-2xl font-mono font-black text-indigo-600 tracking-wider">#{lastBookedAppointment.id.slice(0, 8).toUpperCase()}</p>
                  </div>
-                 <p className="text-center text-slate-500 text-xs mb-6 px-4">Show this QR code at the Guidance Office. You can also find it later in the <strong>Appointments</strong> tab.</p>
+                 <p className="text-center text-slate-500 text-xs mb-6 px-4">Please present your Appointment ID at the Guidance Office.</p>
                  <div className="w-full space-y-3">
-                    <button onClick={() => downloadAppointmentDetails(lastBookedAppointment)} className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200"><Download size={18} /> Save Slip</button>
                     <button onClick={resetForm} className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-colors">Close</button>
                  </div>
                </div>
@@ -642,3 +557,4 @@ Status: ${appt.status}
 };
 
 export default StudentDashboard;
+    

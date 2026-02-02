@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Appointment, AppointmentStatus } from '../../types';
 import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck } from 'lucide-react';
@@ -42,13 +41,10 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
               <UserCheck size={24} />
             </div>
             <div>
-              <p className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">
-                {teacherName ? 'Teacher Verified' : 'Gate Verification'}
-              </p>
               <p className="text-amber-900 font-medium text-lg leading-snug">
                 {teacherName ? (
                   <>
-                    <span className="font-bold">{teacherName}</span> is requesting entry for <span className="font-bold">{appointment.studentName}</span>
+                    <span className="font-bold">{teacherName}</span> is requesting verification for <span className="font-bold">{appointment.studentName}</span>
                   </>
                 ) : (
                   <>
@@ -86,7 +82,7 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
              </div>
              {teacherName && (
                <div className="col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Verified By</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Verified By Teacher</p>
                   <div className="flex items-center gap-2 text-slate-700">
                     <UserCheck size={16} className="text-indigo-500" />
                     <span className="font-bold">{teacherName}</span>
@@ -97,21 +93,21 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
 
           <div className="flex flex-col gap-3 pt-2">
             <button
-              onClick={() => handleDecision(AppointmentStatus.ACCEPTED)}
+              onClick={() => handleDecision(AppointmentStatus.CONFIRMED)}
               className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-[0.98] transition-all"
             >
-              <CheckCircle size={24} /> ALLOW ENTRY
+              <CheckCircle size={24} /> ACCEPT
             </button>
             <button
-              onClick={() => handleDecision(AppointmentStatus.DENIED)}
+              onClick={() => handleDecision(AppointmentStatus.CANCELLED)}
               className="w-full flex items-center justify-center gap-3 py-3 bg-white border-2 border-red-100 text-red-600 rounded-2xl font-bold hover:bg-red-50 active:scale-[0.98] transition-all"
             >
-              <XCircle size={20} /> DENY ENTRY
+              <XCircle size={20} /> DENY
             </button>
           </div>
 
           <p className="text-center text-slate-400 text-[10px] font-medium italic">
-            Please verify the student's appointment details before allowing entry.
+            Please verify the student's appointment details before accepting or denying.
           </p>
         </div>
       </div>

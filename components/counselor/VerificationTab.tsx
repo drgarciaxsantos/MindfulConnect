@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Appointment, AppointmentStatus } from '../../types';
 import { getAppointments, updateAppointmentStatus } from '../../services/storageService';
@@ -46,20 +45,29 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
 
   const handleDecision = async (appt: Appointment, status: AppointmentStatus) => {
     await updateAppointmentStatus(appt.id, status);
-    showNotification(
-      status === AppointmentStatus.ACCEPTED ? 'Entry Approved' : 'Entry Denied', 
-      status === AppointmentStatus.ACCEPTED ? 'success' : 'info'
-    );
+    
+    // Determine message based on status (CONFIRMED = Approved, CANCELLED = Denied)
+    let message = 'Status Updated';
+    let type: 'success' | 'info' = 'info';
+
+    if (status === AppointmentStatus.CONFIRMED) {
+      message = 'Entry Approved';
+      type = 'success';
+    } else if (status === AppointmentStatus.CANCELLED) {
+      message = 'Entry Denied';
+      type = 'info';
+    }
+
+    showNotification(message, type);
     loadData();
   };
 
   // Filter for VERIFYING (At Gate) requests - High Priority
   const gateRequests = appointments.filter(a => a.status === AppointmentStatus.VERIFYING);
   
-  // History items
+  // History items - includes CANCELLED (Denied) and COMPLETED. 
+  // Note: CONFIRMED (Approved) items are active and will show in main dashboard, not necessarily "History" here unless we want to track them specifically.
   const historyList = appointments.filter(a => 
-    a.status === AppointmentStatus.ACCEPTED || 
-    a.status === AppointmentStatus.DENIED || 
     a.status === AppointmentStatus.COMPLETED || 
     a.status === AppointmentStatus.CANCELLED
   );
@@ -104,7 +112,7 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
         </div>
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-emerald-600 font-bold text-xs uppercase tracking-wider mb-1">Entries Approved</p>
-          <p className="text-3xl font-bold text-slate-800">{appointments.filter(a => a.status === AppointmentStatus.ACCEPTED).length}</p>
+          <p className="text-3xl font-bold text-slate-800">{appointments.filter(a => a.status === AppointmentStatus.CONFIRMED).length}</p>
         </div>
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-1">Total Scheduled</p>
@@ -151,8 +159,8 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
             <div key={appt.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col md:flex-row transition-all ${appt.status === AppointmentStatus.VERIFYING ? 'border-indigo-200 shadow-md ring-1 ring-indigo-50' : 'border-slate-200'}`}>
               <div className={`w-full md:w-2 ${
                 appt.status === AppointmentStatus.VERIFYING ? 'bg-indigo-600 animate-pulse' :
-                appt.status === AppointmentStatus.ACCEPTED ? 'bg-emerald-500' :
-                appt.status === AppointmentStatus.DENIED ? 'bg-red-500' :
+                appt.status === AppointmentStatus.CONFIRMED ? 'bg-emerald-500' :
+                appt.status === AppointmentStatus.CANCELLED ? 'bg-red-500' :
                 'bg-slate-300'
               }`} />
               
@@ -161,8 +169,8 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                   <h3 className="text-xl font-bold text-slate-900">{appt.studentName}</h3>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
                     appt.status === AppointmentStatus.VERIFYING ? 'bg-indigo-600 text-white' :
-                    appt.status === AppointmentStatus.ACCEPTED ? 'bg-emerald-100 text-emerald-800' :
-                    appt.status === AppointmentStatus.DENIED ? 'bg-red-100 text-red-800' :
+                    appt.status === AppointmentStatus.CONFIRMED ? 'bg-emerald-100 text-emerald-800' :
+                    appt.status === AppointmentStatus.CANCELLED ? 'bg-red-100 text-red-800' :
                     'bg-slate-100 text-slate-800'
                   }`}>
                     {appt.status === AppointmentStatus.VERIFYING ? 'AT GATE' : appt.status}
@@ -206,14 +214,14 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                   </button>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleDecision(appt, AppointmentStatus.ACCEPTED)}
+                      onClick={() => handleDecision(appt, AppointmentStatus.CONFIRMED)}
                       className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-200 transition-colors"
                       title="Quick Allow"
                     >
                       <CheckCircle size={16} /> Allow
                     </button>
                     <button
-                      onClick={() => handleDecision(appt, AppointmentStatus.DENIED)}
+                      onClick={() => handleDecision(appt, AppointmentStatus.CANCELLED)}
                       className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors"
                       title="Quick Deny"
                     >

@@ -66,8 +66,6 @@ INSERT INTO public.appointment_statuses (status) VALUES
 ('CONFIRMED'),
 ('CANCELLED'),
 ('COMPLETED'),
-('ACCEPTED'),
-('DENIED'),
 ('VERIFYING')
 ON CONFLICT (status) DO NOTHING;
 
@@ -158,7 +156,10 @@ BEGIN
     JOIN public.students s ON a.student_id = s.id
     WHERE s.nfc_uid = scan_nfc_uid
       AND a.date = to_char(now(), 'YYYY-MM-DD')
-      AND a.status IN ('PENDING', 'CONFIRMED');
+      AND a.status IN ('PENDING', 'CONFIRMED')
+      -- RESTRICTION: Only allow verification 15 minutes or less before the scheduled time (or anytime after)
+      -- We compare the current timestamp to the appointment timestamp minus 15 minutes.
+      AND now()::timestamp >= ((a.date || ' ' || a.time)::timestamp - interval '15 minutes');
 END;
 $$ LANGUAGE plpgsql;
 

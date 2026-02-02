@@ -11,9 +11,7 @@ export enum AppointmentStatus {
   CANCELLED = 'CANCELLED',
   COMPLETED = 'COMPLETED',
   // New statuses for gate entry control
-  VERIFYING = 'VERIFYING', // Student is at the gate
-  ACCEPTED = 'ACCEPTED',   // Counselor allowed entry
-  DENIED = 'DENIED'        // Counselor denied entry
+  VERIFYING = 'VERIFYING' // Student is at the gate
 }
 
 export interface User {
