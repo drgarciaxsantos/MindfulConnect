@@ -11,25 +11,30 @@ interface VerificationModalProps {
 
 const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onClose }) => {
   const handleDecision = async (status: AppointmentStatus) => {
-    await updateAppointmentStatus(appointment.id, status);
-    onClose();
+    try {
+      await updateAppointmentStatus(appointment.id, status);
+      onClose();
+    } catch (e) {
+      console.error("Error updating status:", e);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="bg-indigo-600 p-8 text-center text-white">
-          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md">
+        <div className="bg-indigo-600 p-8 text-center text-white relative">
+           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-pulse" />
+          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md shadow-inner ring-4 ring-white/10">
             <ShieldCheck size={40} strokeWidth={2.5} />
           </div>
-          <h2 className="text-3xl font-black tracking-tight mb-2 uppercase">Gate Entry Request</h2>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs font-bold tracking-widest uppercase">
+          <h2 className="text-3xl font-black tracking-tight mb-2 uppercase drop-shadow-sm">Gate Entry Request</h2>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs font-bold tracking-widest uppercase border border-white/20">
             <AlertCircle size={14} /> Action Required
           </div>
         </div>
 
         <div className="p-10 space-y-8">
-          <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+          <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
             <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
               <User size={32} />
             </div>
@@ -54,7 +59,7 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
              </div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 pt-2">
             <button
               onClick={() => handleDecision(AppointmentStatus.ACCEPTED)}
               className="w-full flex items-center justify-center gap-3 py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-[0.98] transition-all"
@@ -65,12 +70,12 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
               onClick={() => handleDecision(AppointmentStatus.DENIED)}
               className="w-full flex items-center justify-center gap-3 py-4 bg-white border-2 border-red-100 text-red-600 rounded-3xl font-bold hover:bg-red-50 active:scale-[0.98] transition-all"
             >
-              <XCircle size={20} /> DENY ACCESS
+              <XCircle size={20} /> DENY ENTRY
             </button>
           </div>
 
           <p className="text-center text-slate-400 text-xs font-medium italic">
-            Request triggered by Teacher/Guard at Gate.
+            This student has been scanned by the Gatekeeper.
           </p>
         </div>
       </div>

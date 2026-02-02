@@ -4,13 +4,16 @@ export enum UserRole {
   COUNSELOR = 'COUNSELOR'
 }
 
+/* AppointmentStatus defines the various stages an appointment can be in, including gate access statuses */
 export enum AppointmentStatus {
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',
   CANCELLED = 'CANCELLED',
   COMPLETED = 'COMPLETED',
-  ACCEPTED = 'ACCEPTED',
-  DENIED = 'DENIED'
+  // New statuses for gate entry control
+  VERIFYING = 'VERIFYING', // Student is at the gate
+  ACCEPTED = 'ACCEPTED',   // Counselor allowed entry
+  DENIED = 'DENIED'        // Counselor denied entry
 }
 
 export interface User {
@@ -18,6 +21,7 @@ export interface User {
   name: string;
   role: UserRole;
   email?: string;
+  // Student specific fields
   studentIdNumber?: string;
   section?: string;
   parentPhoneNumber?: string;
@@ -25,19 +29,24 @@ export interface User {
 
 export interface TimeSlot {
   id: string;
-  time: string;
+  time: string; // HH:mm format
   isBooked: boolean;
 }
 
 export interface DayAvailability {
-  date: string;
+  date: string; // YYYY-MM-DD
   slots: TimeSlot[];
+}
+
+export interface CounselorAvailability {
+  counselorId: string;
+  availability: DayAvailability[];
 }
 
 export interface Appointment {
   id: string;
-  studentId: string;
-  studentIdNumber: string;
+  studentId: string; // System ID
+  studentIdNumber: string; // School ID Number
   studentName: string;
   section: string;
   parentPhoneNumber: string;
@@ -51,9 +60,6 @@ export interface Appointment {
   description: string;
   status: AppointmentStatus;
   createdAt: string;
-
-  // Gate Control
-  isAtGate?: boolean;
 
   // Transfer fields
   transferRequestToId?: string | null;

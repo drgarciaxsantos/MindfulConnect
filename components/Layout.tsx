@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { User, UserRole } from '../types';
+import { User, UserRole, Appointment, AppointmentStatus } from '../types';
 import { LogOut, LayoutDashboard, Calendar, FileText, CalendarPlus, CalendarCheck, Bell, Check, ArrowRight, ShieldCheck } from 'lucide-react';
-import { checkAndSendReminders } from '../services/storageService';
+import { checkAndSendReminders, getAppointments } from '../services/storageService';
 import { useNotification } from './Notifications';
+import VerificationModal from './counselor/VerificationModal';
+import { supabase } from '../services/supabaseClient';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,12 +19,67 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
   const { notifications, unreadCount, markAsRead, refreshNotifications } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  
+  // Realtime Gate Request State
+  const [gateRequest, setGateRequest] = useState<Appointment | null>(null);
 
   useEffect(() => {
     if (user) {
       checkAndSendReminders(user.id);
     }
   }, [user?.id]);
+
+  // Global listener for Gate Requests (VERIFYING status)
+  useEffect(() => {
+    if (user && user.role === UserRole.COUNSELOR) {
+      // 1. Initial Check
+      const checkPendingGateRequests = async () => {
+        const all = await getAppointments();
+        // Look for VERIFYING requests assigned to this counselor
+        const pending = all.find(a => 
+          a.status === AppointmentStatus.VERIFYING && 
+          String(a.counselorId) === String(user.id)
+        );
+        if (pending) {
+          setGateRequest(pending);
+        } else {
+          setGateRequest(null);
+        }
+      };
+      
+      checkPendingGateRequests();
+
+      // 2. Realtime Subscription
+      const channel = supabase.channel('global_gate_watch')
+        .on(
+          'postgres_changes', 
+          { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'appointments',
+            filter: `counselor_id=eq.${user.id}` 
+          }, 
+          (payload) => {
+            if (payload.new.status === AppointmentStatus.VERIFYING) {
+              // Trigger a full fetch to get joined data (student name, etc)
+              checkPendingGateRequests();
+            } else if (
+              gateRequest && 
+              payload.new.id === gateRequest.id && 
+              payload.new.status !== AppointmentStatus.VERIFYING
+            ) {
+              // If the current request was handled elsewhere, close modal
+              setGateRequest(null);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user, gateRequest]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -170,7 +227,15 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans relative">
+      {/* Global Verification Modal */}
+      {gateRequest && (
+        <VerificationModal 
+          appointment={gateRequest} 
+          onClose={() => setGateRequest(null)} 
+        />
+      )}
+
       <aside className="w-full md:w-64 bg-white border-r border-slate-200 md:h-screen sticky top-0 z-30 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="p-6 border-b border-slate-100 flex items-center gap-3">
           <span className="font-bold text-lg text-slate-800 tracking-tight">MindfulConnect</span>
@@ -186,7 +251,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
             {[
               { id: 'appointments', label: 'Appointments', icon: LayoutDashboard },
               { id: 'availability', label: 'Availability', icon: Calendar },
-              { id: 'verification', label: 'Gate Control', icon: ShieldCheck },
+              { id: 'verification', label: 'Gate Requests', icon: ShieldCheck },
               { id: 'reports', label: 'Reports', icon: FileText },
             ].map(item => (
               <button
