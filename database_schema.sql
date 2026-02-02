@@ -19,12 +19,10 @@ BEGIN
 END $$;
 
 -- 2. MANAGE TEACHERS (EDIT THIS SECTION TO ADD MORE)
--- Format: ('Name', 'NFC_ID')
--- Note: Use commas to separate multiple teachers. The last one should not have a comma.
 INSERT INTO public.teachers (name, nfc_uid)
 VALUES 
   ('Jem Palaganas', '04:84:c8:d1:2e:61:80'),
-  ('Example Teacher', '00:00:00:00:00:00:00') -- Replace this with a real tag or add more lines above
+  ('Example Teacher', '00:00:00:00:00:00:00')
 ON CONFLICT (nfc_uid) DO UPDATE 
 SET name = EXCLUDED.name;
 
@@ -164,13 +162,11 @@ BEGIN
     WHERE s.nfc_uid = scan_nfc_uid
       AND a.date = to_char(now(), 'YYYY-MM-DD')
       AND a.status IN ('PENDING', 'CONFIRMED')
-      -- RESTRICTION: Only allow verification 15 minutes or less before the scheduled time (or anytime after)
-      -- We compare the current timestamp to the appointment timestamp minus 15 minutes.
       AND now()::timestamp >= ((a.date || ' ' || a.time)::timestamp - interval '15 minutes');
 END;
 $$ LANGUAGE plpgsql;
 
--- 11. Insert Data
+-- 11. Insert Data (Students & Counselors)
 UPDATE public.students SET nfc_uid = NULL WHERE nfc_uid IN ('04:73:29:D2:2E:61:80', '04:E0:28:D6:2E:61:80');
 
 INSERT INTO public.students (student_id_number, password, name, section, parent_phone_number, nfc_uid)
@@ -206,7 +202,7 @@ SELECT
   s.id, s.student_id_number, s.name, s.section,
   c.id, c.name,
   to_char(now(), 'YYYY-MM-DD'),
-  to_char(now(), 'HH12:MI AM'),
+  to_char(now(), 'HH24:MI'), -- Changed to 24h format to match frontend input
   'NFC Gate Verification Test',
   'VERIFYING',
   'Jem Palaganas'
@@ -218,3 +214,118 @@ AND NOT EXISTS (
     WHERE a.student_id = s.id 
       AND a.date = to_char(now(), 'YYYY-MM-DD')
 );
+
+-- 13. AUTOMATED SYNC TRIGGERS (Ensures Availability matches Appointments)
+
+CREATE OR REPLACE FUNCTION update_availability_slot(
+  p_counselor_id uuid,
+  p_date text,
+  p_time text,
+  p_is_booked boolean
+) RETURNS void AS $$
+BEGIN
+  UPDATE public.availability a
+  SET slots = (
+    SELECT jsonb_agg(
+      CASE
+        WHEN (elem->>'time') = p_time THEN 
+          jsonb_set(elem, '{isBooked}', to_jsonb(p_is_booked))
+        ELSE elem
+      END
+    )
+    FROM jsonb_array_elements(a.slots) AS elem
+  )
+  WHERE counselor_id = p_counselor_id AND date = p_date;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sync_appointment_to_availability() RETURNS TRIGGER AS $$
+BEGIN
+  -- Handle DELETE
+  IF (TG_OP = 'DELETE') THEN
+     PERFORM update_availability_slot(OLD.counselor_id, OLD.date, OLD.time, false);
+     RETURN OLD;
+  END IF;
+
+  -- Handle UPDATE
+  IF (TG_OP = 'UPDATE') THEN
+     -- Status change: Cancelled/Completed -> Free slot
+     IF NEW.status IN ('CANCELLED', 'COMPLETED') AND OLD.status IN ('PENDING', 'CONFIRMED') THEN
+        PERFORM update_availability_slot(OLD.counselor_id, OLD.date, OLD.time, false);
+     END IF;
+     
+     -- Status change: Confirmed/Pending -> Book slot
+     IF NEW.status IN ('PENDING', 'CONFIRMED') AND OLD.status IN ('CANCELLED', 'COMPLETED') THEN
+        PERFORM update_availability_slot(NEW.counselor_id, NEW.date, NEW.time, true);
+     END IF;
+
+     -- Reschedule (Time/Date change)
+     IF (OLD.date <> NEW.date OR OLD.time <> NEW.time) THEN
+        PERFORM update_availability_slot(OLD.counselor_id, OLD.date, OLD.time, false);
+        IF NEW.status IN ('PENDING', 'CONFIRMED') THEN
+            PERFORM update_availability_slot(NEW.counselor_id, NEW.date, NEW.time, true);
+        END IF;
+     END IF;
+  END IF;
+
+  -- Handle INSERT
+  IF (TG_OP = 'INSERT') THEN
+     IF NEW.status IN ('PENDING', 'CONFIRMED') THEN
+        PERFORM update_availability_slot(NEW.counselor_id, NEW.date, NEW.time, true);
+     END IF;
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_sync_availability ON public.appointments;
+CREATE TRIGGER trigger_sync_availability
+AFTER INSERT OR UPDATE OR DELETE ON public.appointments
+FOR EACH ROW EXECUTE FUNCTION sync_appointment_to_availability();
+
+-- 14. DATA RE-SYNC SCRIPT
+-- Re-syncs availability based on current appointments.
+-- Uses 24h format matching logic.
+
+WITH expanded_slots AS (
+    SELECT 
+        a.id AS avail_id,
+        a.counselor_id,
+        a.date,
+        elem->>'time' as time,
+        elem->>'id' as slot_id
+    FROM public.availability a,
+    jsonb_array_elements(a.slots) elem
+),
+matched_status AS (
+    SELECT 
+        es.avail_id,
+        es.time,
+        es.slot_id,
+        EXISTS (
+            SELECT 1 FROM public.appointments appt
+            WHERE appt.counselor_id = es.counselor_id 
+              AND appt.date = es.date 
+              AND appt.time = es.time
+              AND appt.status IN ('PENDING', 'CONFIRMED')
+        ) as is_actually_booked
+    FROM expanded_slots es
+),
+reconstructed_slots AS (
+    SELECT 
+        avail_id,
+        jsonb_agg(
+            jsonb_build_object(
+                'id', slot_id,
+                'time', time,
+                'isBooked', is_actually_booked
+            ) ORDER BY time
+        ) as new_slots
+    FROM matched_status
+    GROUP BY avail_id
+)
+UPDATE public.availability a
+SET slots = rs.new_slots
+FROM reconstructed_slots rs
+WHERE a.id = rs.avail_id;

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, DayAvailability } from '../../types';
-import { getCounselorAvailability, saveAvailability } from '../../services/storageService';
+import { getCounselorAvailability, saveAvailability, subscribeToAvailability } from '../../services/storageService';
 import { Plus, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
-import { format, addDays, endOfMonth, eachDayOfInterval, addMonths, getDay, isSameDay } from 'date-fns';
+import { format, endOfMonth, eachDayOfInterval, addMonths, getDay } from 'date-fns';
 
 // Polyfills for missing date-fns exports
 const startOfToday = () => {
@@ -34,7 +35,13 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user }) => {
 
   useEffect(() => {
     loadAvailability();
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+    
+    // Subscribe to realtime updates for this counselor's availability
+    const unsubscribe = subscribeToAvailability(user.id, () => {
+        loadAvailability();
+    });
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
   const loadAvailability = async () => {

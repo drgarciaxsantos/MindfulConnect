@@ -1,20 +1,22 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Appointment, AppointmentStatus, DayAvailability } from '../../types';
 import { getAppointments, updateAppointmentStatus, rescheduleAppointment, cancelRescheduleProposal, getCounselorAvailability, subscribeToAppointments, getCounselors, initiateTransfer, respondToTransfer, cancelTransfer } from '../../services/storageService';
-import { Clock, CheckCircle, XCircle, Phone, Hash, BookOpen, CalendarDays, RefreshCw, ArrowRightLeft, UserCheck, Loader2, X, Search, SortAsc, SortDesc, ChevronLeft, ChevronRight, Ban } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Phone, Hash, BookOpen, CalendarDays, RefreshCw, ArrowRightLeft, UserCheck, Loader2, X, Search, SortAsc, SortDesc, ChevronLeft, ChevronRight, Ban, LayoutList, Calendar as CalendarIcon, Filter } from 'lucide-react';
 import AvailabilityManager from './AvailabilityManager';
-import { format, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
+import { format, endOfMonth, eachDayOfInterval, addMonths, endOfWeek, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { useNotification } from '../Notifications';
 
 // Polyfills for missing date-fns exports
 const parseISO = (str: string) => new Date(str.includes('T') ? str : str + 'T00:00:00');
-const startOfToday = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+const startOfWeek = (date: Date) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  const newDate = new Date(d.setDate(diff));
+  newDate.setHours(0, 0, 0, 0);
+  return newDate;
+};
 
 interface CounselorDashboardProps {
   user: User;
@@ -23,6 +25,7 @@ interface CounselorDashboardProps {
 
 type SortField = 'date' | 'name' | 'status';
 type SortOrder = 'asc' | 'desc';
+type ViewMode = 'list' | 'calendar';
 
 const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -34,11 +37,16 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
   const [isLoading, setIsLoading] = useState(true);
   const { showNotification } = useNotification();
   
+  // View Mode State
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
   // Reschedule State
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState<string>('');
   const [rescheduleTime, setRescheduleTime] = useState<string>('');
-  const [rescheduleCalendarMonth, setRescheduleCalendarMonth] = useState(startOfToday());
+  const [rescheduleCalendarMonth, setRescheduleCalendarMonth] = useState(new Date());
   const [ownAvailability, setOwnAvailability] = useState<DayAvailability[]>([]);
   const [isRescheduling, setIsRescheduling] = useState(false);
 
@@ -152,7 +160,11 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
       const query = searchQuery.toLowerCase();
       
       const matchesSearch = studentName.includes(query) || studentId.includes(query);
-      return matchesFilter && matchesSearch;
+      
+      // If a date is selected in calendar mode, filter by that date
+      const matchesDate = !selectedDate || (a.date === format(selectedDate, 'yyyy-MM-dd'));
+
+      return matchesFilter && matchesSearch && matchesDate;
     });
 
     result.sort((a, b) => {
@@ -171,7 +183,28 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     });
 
     return result;
-  }, [appointments, filter, searchQuery, sortBy, sortOrder]);
+  }, [appointments, filter, searchQuery, sortBy, sortOrder, selectedDate]);
+
+  // Appointments grouped by date for Calendar dots
+  const appointmentsByDate = useMemo(() => {
+    const map = new Map<string, Appointment[]>();
+    // Use the filtered list (search + status) but ignoring the selectedDate filter
+    // so we can see dots for all relevant appointments
+    const baseList = appointments.filter(a => {
+        const matchesFilter = filter === 'all' || a.status === filter;
+        const studentName = (a.studentName || '').toLowerCase();
+        const studentId = (a.studentIdNumber || '').toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return matchesFilter && (studentName.includes(query) || studentId.includes(query));
+    });
+
+    baseList.forEach(app => {
+      if (!app.date) return;
+      if (!map.has(app.date)) map.set(app.date, []);
+      map.get(app.date)?.push(app);
+    });
+    return map;
+  }, [appointments, filter, searchQuery]);
 
   const toggleSort = (field: SortField) => {
     if (sortBy === field) {
@@ -225,6 +258,14 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     });
   }, [rescheduleCalendarMonth]);
 
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(calendarDate);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+    return eachDayOfInterval({ start: startDate, end: endDate });
+  }, [calendarDate]);
+
   const getDateStatus = (dateStr: string) => {
     const dayData = ownAvailability.find(d => d.date === dateStr);
     if (!dayData || dayData.slots.length === 0) return 'empty';
@@ -234,6 +275,17 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
 
   const getSlotsForDate = (dateStr: string) => {
     return ownAvailability.find(d => d.date === dateStr)?.slots.filter(s => !s.isBooked) || [];
+  };
+
+  // Helper to get color for dots
+  const getStatusColor = (status: AppointmentStatus) => {
+    switch (status) {
+        case AppointmentStatus.PENDING: return 'bg-amber-400';
+        case AppointmentStatus.CONFIRMED: return 'bg-blue-500';
+        case AppointmentStatus.COMPLETED: return 'bg-emerald-500';
+        case AppointmentStatus.CANCELLED: return 'bg-red-500';
+        default: return 'bg-slate-400';
+    }
   };
 
   if (activeTab === 'availability') return <AvailabilityManager user={user} />;
@@ -248,6 +300,29 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
               {isLoading && <Loader2 className="animate-spin text-indigo-500" size={20} />}
             </h2>
             <p className="text-slate-500">View and manage student appointment requests</p>
+          </div>
+          
+          <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
+             <button
+               onClick={() => { setViewMode('list'); setSelectedDate(null); }}
+               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                 viewMode === 'list' 
+                   ? 'bg-indigo-100 text-indigo-700 shadow-sm' 
+                   : 'text-slate-600 hover:bg-slate-50'
+               }`}
+             >
+               <LayoutList size={16} /> List
+             </button>
+             <button
+               onClick={() => setViewMode('calendar')}
+               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                 viewMode === 'calendar' 
+                   ? 'bg-indigo-100 text-indigo-700 shadow-sm' 
+                   : 'text-slate-600 hover:bg-slate-50'
+               }`}
+             >
+               <CalendarIcon size={16} /> Calendar
+             </button>
           </div>
         </div>
 
@@ -264,7 +339,9 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
               />
             </div>
             <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">Filter:</span>
+              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">
+                 <Filter size={14} /> Filter:
+              </span>
               {['all', AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED].map(f => (
                 <button 
                   key={f} 
@@ -281,33 +358,111 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
             </div>
           </div>
 
-          <div className="flex items-center gap-4 pt-4 border-t border-slate-100">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sort by:</span>
-            <div className="flex gap-2">
-              {[
-                { field: 'date' as SortField, label: 'Date & Time' },
-                { field: 'name' as SortField, label: 'Student Name' },
-                { field: 'status' as SortField, label: 'Status' },
-              ].map((s) => (
-                <button
-                  key={s.field}
-                  onClick={() => toggleSort(s.field)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                    sortBy === s.field 
-                      ? 'bg-slate-100 border-slate-300 text-slate-900' 
-                      : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                  }`}
-                >
-                  {s.label}
-                  {sortBy === s.field && (
-                    sortOrder === 'asc' ? <SortAsc size={14} /> : <SortDesc size={14} />
-                  )}
-                </button>
-              ))}
+          {viewMode === 'list' && (
+            <div className="flex items-center gap-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-1">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sort by:</span>
+              <div className="flex gap-2">
+                {[
+                  { field: 'date' as SortField, label: 'Date & Time' },
+                  { field: 'name' as SortField, label: 'Student Name' },
+                  { field: 'status' as SortField, label: 'Status' },
+                ].map((s) => (
+                  <button
+                    key={s.field}
+                    onClick={() => toggleSort(s.field)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                      sortBy === s.field 
+                        ? 'bg-slate-100 border-slate-300 text-slate-900' 
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    {s.label}
+                    {sortBy === s.field && (
+                      sortOrder === 'asc' ? <SortAsc size={14} /> : <SortDesc size={14} />
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </header>
+      
+      {/* View Mode: Calendar */}
+      {viewMode === 'calendar' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-4 flex items-center justify-between border-b border-slate-200 bg-slate-50">
+                 <button onClick={() => setCalendarDate(addMonths(calendarDate, -1))} className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200 shadow-sm hover:shadow">
+                   <ChevronLeft size={20} className="text-slate-600" />
+                 </button>
+                 <h2 className="text-lg font-bold text-slate-800">{format(calendarDate, 'MMMM yyyy')}</h2>
+                 <button onClick={() => setCalendarDate(addMonths(calendarDate, 1))} className="p-2 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200 shadow-sm hover:shadow">
+                   <ChevronRight size={20} className="text-slate-600" />
+                 </button>
+              </div>
+              <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/50">
+                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                    <div key={d} className="py-2 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">{d}</div>
+                 ))}
+              </div>
+              <div className="grid grid-cols-7 divide-x divide-slate-100 divide-y">
+                 {calendarDays.map((day, idx) => {
+                    const dayStr = format(day, 'yyyy-MM-dd');
+                    const isSelected = selectedDate && isSameDay(day, selectedDate);
+                    const isCurrentMonth = isSameMonth(day, calendarDate);
+                    const isTodayDate = isToday(day);
+                    const dayAppts = appointmentsByDate.get(dayStr) || [];
+                    
+                    return (
+                       <div 
+                         key={dayStr} 
+                         onClick={() => setSelectedDate(day)}
+                         className={`min-h-[100px] p-2 transition-all cursor-pointer hover:bg-slate-50 relative group ${
+                           !isCurrentMonth ? 'bg-slate-50/30' : 'bg-white'
+                         } ${isSelected ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
+                       >
+                         <div className="flex items-center justify-between mb-2">
+                            <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full ${
+                               isTodayDate ? 'bg-indigo-600 text-white' : 
+                               !isCurrentMonth ? 'text-slate-300' : 'text-slate-700'
+                            }`}>
+                               {format(day, 'd')}
+                            </span>
+                            {dayAppts.length > 0 && (
+                               <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{dayAppts.length}</span>
+                            )}
+                         </div>
+                         <div className="space-y-1">
+                            {dayAppts.slice(0, 4).map(app => (
+                               <div key={app.id} className="flex items-center gap-1.5" title={`${app.studentName} - ${app.status}`}>
+                                  <div className={`w-2 h-2 rounded-full ${getStatusColor(app.status)} shrink-0`} />
+                                  <span className="text-[10px] font-medium text-slate-600 truncate">{app.time}</span>
+                               </div>
+                            ))}
+                            {dayAppts.length > 4 && (
+                               <div className="text-[10px] text-slate-400 pl-1 font-medium">+ {dayAppts.length - 4} more</div>
+                            )}
+                         </div>
+                       </div>
+                    );
+                 })}
+              </div>
+           </div>
+           
+           <div className="bg-slate-50 rounded-xl border-t-4 border-indigo-500 p-4">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                 {selectedDate ? `Appointments for ${format(selectedDate, 'MMM d, yyyy')}` : 'Select a date to view details'}
+              </h3>
+              {!selectedDate && (
+                 <div className="text-center py-8 text-slate-400">
+                    <CalendarIcon size={48} className="mx-auto mb-2 opacity-20" />
+                    <p>Click on a calendar day to see specific appointments.</p>
+                 </div>
+              )}
+           </div>
+        </div>
+      )}
 
       {transferModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
@@ -333,16 +488,19 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
         </div>
       )}
 
+      {/* Appointment List (Used for both List View and Calendar Detail View) */}
       <div className="grid grid-cols-1 gap-4">
         {filteredAndSortedAppointments.length === 0 ? (
-          <div className="bg-white p-12 rounded-xl border border-dashed border-slate-300 text-center text-slate-500">
-            <Search className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-            <p className="font-medium text-slate-600">No appointments found.</p>
-            <p className="text-sm mt-1">Logged in as: {user.name} (ID: {user.id})</p>
-          </div>
+          (viewMode === 'list' || selectedDate) && (
+            <div className="bg-white p-12 rounded-xl border border-dashed border-slate-300 text-center text-slate-500">
+              <Search className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+              <p className="font-medium text-slate-600">No appointments found.</p>
+              {viewMode === 'calendar' && selectedDate && <p className="text-sm mt-1">No bookings for {format(selectedDate, 'MMM d, yyyy')}</p>}
+            </div>
+          )
         ) : (
           filteredAndSortedAppointments.map(app => (
-            <div key={app.id} className={`rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow relative ${app.transferRequestToId && String(app.transferRequestToId).toLowerCase() === String(user.id).toLowerCase() ? 'bg-purple-50 border-purple-200' : 'bg-white border-slate-200'}`}>
+            <div key={app.id} className={`rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow relative animate-in fade-in slide-in-from-bottom-2 ${app.transferRequestToId && String(app.transferRequestToId).toLowerCase() === String(user.id).toLowerCase() ? 'bg-purple-50 border-purple-200' : 'bg-white border-slate-200'}`}>
               {(app.transferRequestToId && String(app.transferRequestToId).toLowerCase() === String(user.id).toLowerCase()) && (
                 <div className="bg-purple-600 text-white text-[10px] font-bold px-4 py-1.5 flex items-center justify-between uppercase tracking-widest">
                   <span className="flex items-center gap-1.5"><ArrowRightLeft size={12} /> Incoming Transfer</span>
@@ -357,13 +515,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
               )}
               <div className="p-6">
                 <div className="flex flex-col md:flex-row gap-6">
-                  <div className={`w-1.5 self-stretch rounded-full ${
-                    app.status === AppointmentStatus.PENDING ? 'bg-amber-400' : 
-                    app.status === AppointmentStatus.CONFIRMED ? 'bg-blue-500' : 
-                    app.status === AppointmentStatus.COMPLETED ? 'bg-green-500' : 
-                    app.status === AppointmentStatus.CANCELLED ? 'bg-red-500' : 
-                    'bg-slate-300'
-                  }`} />
+                  <div className={`w-1.5 self-stretch rounded-full ${getStatusColor(app.status)}`} />
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                       <div>

@@ -16,7 +16,6 @@ const localCounselors: User[] = [
 
 export const initMockData = () => {
   if (localAppointments.length === 0) {
-     // Seed with data from schema for testing if offline
      const today = new Date().toISOString().split('T')[0];
      localAppointments.push({
       id: 'mock-appt-1',
@@ -164,7 +163,6 @@ export const markAllNotificationsRead = async (userId: string) => {
 };
 
 export const checkAndSendReminders = async (userId: string) => {
-  // Logic simplified for fallback/robustness
   const now = new Date();
   const appointments = await getAppointments();
   
@@ -222,7 +220,7 @@ export const saveAppointment = async (appointment: Appointment): Promise<Appoint
     const { data, error } = await supabase.from('appointments').insert(dbPayload).select().single();
     if (error) throw error;
     
-    await updateSlotStatus(appointment.counselorId, appointment.date, appointment.time, true);
+    // DB Trigger handles availability update now.
     await createNotification(appointment.counselorId, `New Appointment Request: ${appointment.studentName} for ${appointment.date} at ${appointment.time}`);
 
     return {
@@ -244,7 +242,6 @@ export const saveAppointment = async (appointment: Appointment): Promise<Appoint
     };
   } catch (e) {
     console.warn("Supabase save failed, using fallback.", e);
-    // Check conflicts locally
     const conflict = localAppointments.find(a => 
         a.studentId === appointment.studentId && 
         a.date === appointment.date && 
@@ -277,10 +274,7 @@ export const updateAppointmentStatus = async (id: string, status: AppointmentSta
           counselorName: data.counselor_name
       } as Appointment;
 
-      if (status === AppointmentStatus.CANCELLED && data) {
-         await updateSlotStatus(data.counselor_id, data.date, data.time, false);
-      }
-      
+      // DB Trigger handles availability update now.
       const { error: updateError } = await supabase.from('appointments').update({ status }).eq('id', id);
       if (updateError) throw updateError;
   } catch (e) {
@@ -305,20 +299,8 @@ export const updateAppointmentStatus = async (id: string, status: AppointmentSta
   }
 };
 
-// ... Transfer and Reschedule Logic (simplified for brevity, but same pattern applies) ...
-// We will apply a generic fallback for other methods to ensure they don't crash.
-
-const safeUpdate = async (table: string, update: any, match: any) => {
-    try {
-        const { error } = await supabase.from(table).update(update).match(match);
-        if (error) throw error;
-        return true;
-    } catch (e) { return false; }
-}
-
 export const rescheduleAppointment = async (appointmentId: string, newDate: string, newTime: string): Promise<boolean> => {
   try {
-      // ... try supabase ...
       const { data: appt, error } = await supabase.from('appointments').select('*').eq('id', appointmentId).single();
       if (error || !appt) throw error;
       const { error: uErr } = await supabase.from('appointments').update({ reschedule_proposed_date: newDate, reschedule_proposed_time: newTime }).eq('id', appointmentId);
@@ -349,16 +331,12 @@ export const cancelRescheduleProposal = async (appointmentId: string): Promise<b
 };
 
 export const studentRespondToReschedule = async (appointmentId: string, accept: boolean): Promise<boolean> => {
-    // ... similar try/catch wrapper ...
-    // For brevity, using a simpler implementation that tries to rely on getters/setters we fixed above if possible,
-    // but here we need specific logic.
     try {
         const { data: appt, error } = await supabase.from('appointments').select('*').eq('id', appointmentId).single();
         if (error || !appt) throw error;
         
         if (accept) {
-            await updateSlotStatus(appt.counselor_id, appt.date, appt.time, false);
-            await updateSlotStatus(appt.counselor_id, appt.reschedule_proposed_date, appt.reschedule_proposed_time, true);
+            // DB Trigger handles old slot freeing and new slot booking when date/time changes
             await supabase.from('appointments').update({
                 date: appt.reschedule_proposed_date,
                 time: appt.reschedule_proposed_time,
@@ -368,12 +346,12 @@ export const studentRespondToReschedule = async (appointmentId: string, accept: 
             }).eq('id', appointmentId);
             await createNotification(appt.counselor_id, `Student ${appt.student_name} approved the reschedule.`);
         } else {
-             await updateSlotStatus(appt.counselor_id, appt.date, appt.time, false);
              await supabase.from('appointments').update({ status: AppointmentStatus.CANCELLED, reschedule_proposed_date: null, reschedule_proposed_time: null }).eq('id', appointmentId);
              await createNotification(appt.counselor_id, `Student ${appt.student_name} declined. Cancelled.`);
         }
         return true;
     } catch (e) {
+        // Fallback logic kept for local mode
         const appt = localAppointments.find(a => a.id === appointmentId);
         if (appt && appt.rescheduleProposedDate && appt.rescheduleProposedTime) {
             if (accept) {
@@ -402,7 +380,6 @@ export const initiateTransfer = async (appointmentId: string, toCounselorId: str
     try {
         const { data: appt, error } = await supabase.from('appointments').select('*').eq('id', appointmentId).single();
         if (error || !appt) throw error;
-        // ... conflict check ...
         await supabase.from('appointments').update({
             transfer_request_to_id: toCounselorId,
             transfer_request_to_name: toCounselorName,
@@ -439,11 +416,9 @@ export const cancelTransfer = async (appointmentId: string, originalCounselorNam
 };
 
 export const respondToTransfer = async (appointmentId: string, accept: boolean, receivingCounselorId: string, receivingCounselorName: string): Promise<boolean> => {
-    // Basic wrapper
     try {
         const { error } = await supabase.from('appointments').update({ transfer_counselor_accepted: accept ? true : null }).eq('id', appointmentId);
         if(error) throw error;
-        // ... logic for finalize if student accepted ...
         return true; 
     } catch(e) {
         const appt = localAppointments.find(a => a.id === appointmentId);
@@ -489,17 +464,13 @@ export const getCounselorAvailability = async (counselorId: string): Promise<Day
 export const saveAvailability = async (counselorId: string, date: string, timeSlots: string[]) => {
   const finalSlots: TimeSlot[] = timeSlots.map(time => ({ id: `${date}-${time}`, time, isBooked: false }));
   try {
-    // ... logic to merge existing slots is tricky in upsert with jsonb, normally supabase handles replace
-    // For simplicity in try block we rely on user logic provided previously, assuming standard upsert
-    // But we need to preserve isBooked status if we are just updating slots? 
-    // The previous code fetched existing slots.
-    
-    // Let's implement robust fetch-then-upsert
+    // Preserve booking status of existing slots
     const { data: existing } = await supabase.from('availability').select('slots').eq('counselor_id', counselorId).eq('date', date).maybeSingle();
     let slotsToSave = finalSlots;
     if (existing && existing.slots) {
        slotsToSave = finalSlots.map(ns => {
            const found = (existing.slots as TimeSlot[]).find(s => s.time === ns.time);
+           // Keep the existing record if found to preserve isBooked status
            return found ? found : ns;
        });
     }
@@ -507,7 +478,6 @@ export const saveAvailability = async (counselorId: string, date: string, timeSl
     const { error } = await supabase.from('availability').upsert({ counselor_id: counselorId, date, slots: slotsToSave }, { onConflict: 'counselor_id,date' });
     if(error) throw error;
   } catch (e) {
-    // Local fallback
     let counselorAvail = localAvailability.find(c => c.counselorId === counselorId);
     if (!counselorAvail) {
         counselorAvail = { counselorId, days: [] };
@@ -515,7 +485,6 @@ export const saveAvailability = async (counselorId: string, date: string, timeSl
     }
     const existingDay = counselorAvail.days.find(d => d.date === date);
     if (existingDay) {
-         // Merge logic
          existingDay.slots = finalSlots.map(ns => {
              const found = existingDay.slots.find(s => s.time === ns.time);
              return found ? found : ns;
@@ -527,6 +496,7 @@ export const saveAvailability = async (counselorId: string, date: string, timeSl
 };
 
 export const updateSlotStatus = async (counselorId: string, date: string, time: string, isBooked: boolean) => {
+  // Only used for local fallback or explicit slot management outside of appointment flow
   try {
     const { data: existing, error } = await supabase.from('availability').select('slots').eq('counselor_id', counselorId).eq('date', date).maybeSingle();
     if(error) throw error;
@@ -561,8 +531,29 @@ export const subscribeToAppointments = (callback: () => void) => {
         supabase.removeChannel(channel);
       };
   } catch(e) {
-      // Return no-op if subscription fails
       return () => {};
   }
 };
-    
+
+export const subscribeToAvailability = (counselorId: string, callback: () => void) => {
+    try {
+        const uniqueId = Math.random().toString(36).substring(7);
+        const channel = supabase
+          .channel(`public:availability:${uniqueId}`)
+          .on('postgres_changes', { 
+              event: '*', 
+              schema: 'public', 
+              table: 'availability', 
+              filter: `counselor_id=eq.${counselorId}` 
+          }, () => {
+            callback();
+          })
+          .subscribe();
+  
+        return () => {
+          supabase.removeChannel(channel);
+        };
+    } catch(e) {
+        return () => {};
+    }
+  };
