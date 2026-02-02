@@ -33,16 +33,16 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
           </div>
         </div>
 
-        <div className="p-10 space-y-8">
+        <div className="p-10 space-y-6">
           {appointment.verifiedByTeacherName && (
-             <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
-                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
-                     <UserCheck className="text-indigo-600" size={20} />
+             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center sm:items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-2">
+                <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0 mt-1">
+                     <UserCheck size={20} />
                 </div>
-                <div>
-                    <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Teacher Request</p>
-                    <p className="text-sm text-indigo-900 font-medium leading-tight">
-                        <span className="font-bold">{appointment.verifiedByTeacherName}</span> requested verification for <span className="font-bold">{appointment.studentName}</span>.
+                <div className="text-center sm:text-left">
+                    <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Teacher Verification</p>
+                    <p className="text-slate-800 font-medium text-lg leading-snug">
+                        <span className="font-bold text-indigo-700">{appointment.verifiedByTeacherName}</span> asked for the verification of <span className="font-bold text-indigo-700">{appointment.studentName}</span>.
                     </p>
                 </div>
              </div>
@@ -73,15 +73,15 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
              </div>
           </div>
 
-          <div className="flex flex-col gap-3 pt-2">
+          <div className="flex flex-col gap-3 pt-4">
             <button
-              onClick={() => handleDecision(AppointmentStatus.CONFIRMED)}
+              onClick={() => handleDecision(AppointmentStatus.ACCEPTED)}
               className="w-full flex items-center justify-center gap-3 py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-[0.98] transition-all"
             >
               <CheckCircle size={24} /> ALLOW ENTRY
             </button>
             <button
-              onClick={() => handleDecision(AppointmentStatus.CANCELLED)}
+              onClick={() => handleDecision(AppointmentStatus.DENIED)}
               className="w-full flex items-center justify-center gap-3 py-4 bg-white border-2 border-red-100 text-red-600 rounded-3xl font-bold hover:bg-red-50 active:scale-[0.98] transition-all"
             >
               <XCircle size={20} /> DENY ENTRY

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Appointment, AppointmentStatus } from '../../types';
 import { getAppointments, updateAppointmentStatus } from '../../services/storageService';
-import { ShieldCheck, CheckCircle, XCircle, Clock, MapPin, User as UserIcon, RefreshCw, Filter, AlertTriangle, Eye } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, Clock, MapPin, User as UserIcon, RefreshCw, AlertTriangle, Eye, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNotification } from '../Notifications';
 import VerificationModal from './VerificationModal';
@@ -59,7 +59,7 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
   // History items
   const historyList = appointments.filter(a => 
     a.status === AppointmentStatus.ACCEPTED || 
-    a.status === AppointmentStatus.DENIED ||
+    a.status === AppointmentStatus.DENIED || 
     a.status === AppointmentStatus.COMPLETED ||
     a.status === AppointmentStatus.CANCELLED
   );
@@ -174,6 +174,13 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                   <span className="flex items-center gap-1.5"><MapPin size={16} className="text-indigo-500" /> {appt.section || 'No Section'}</span>
                   {appt.studentIdNumber && <span className="flex items-center gap-1.5"><UserIcon size={16} className="text-indigo-500" /> ID: {appt.studentIdNumber}</span>}
                 </div>
+                
+                {appt.verifiedByTeacherName && (
+                  <div className="mb-4 inline-flex items-center gap-2 bg-amber-50 text-amber-800 text-xs font-bold px-3 py-2 rounded-lg border border-amber-100">
+                     <UserCheck size={14} />
+                     Verified by: {appt.verifiedByTeacherName}
+                  </div>
+                )}
                 
                 <p className="text-slate-700 font-medium bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm">
                   Reason: {appt.reason}
