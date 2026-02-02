@@ -174,13 +174,17 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                   {appt.studentIdNumber && <span className="flex items-center gap-1.5"><UserIcon size={16} className="text-indigo-500" /> ID: {appt.studentIdNumber}</span>}
                 </div>
                 
-                {appt.verifiedByTeacherName && (
+                {(appt.verifiedByTeacherName || appt.status === AppointmentStatus.VERIFYING) && (
                   <div className="mb-4 flex items-start gap-3 bg-amber-50 text-amber-900 text-sm p-3 rounded-xl border border-amber-200 shadow-sm">
                      <div className="bg-amber-100 p-1.5 rounded-full shrink-0 text-amber-700">
                        <UserCheck size={16} />
                      </div>
                      <span className="font-medium py-0.5">
-                       <span className="font-bold">{appt.verifiedByTeacherName}</span> asked for the verification of <span className="font-bold">{appt.studentName}</span>
+                       {appt.verifiedByTeacherName ? (
+                         <><span className="font-bold">{appt.verifiedByTeacherName}</span> asked for the verification of <span className="font-bold">{appt.studentName}</span></>
+                       ) : (
+                         <>Gate verification requested for <span className="font-bold">{appt.studentName}</span></>
+                       )}
                      </span>
                   </div>
                 )}

@@ -19,6 +19,9 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
     }
   };
 
+  const isVerifying = appointment.status === AppointmentStatus.VERIFYING;
+  const teacherName = appointment.verifiedByTeacherName;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 relative">
@@ -33,15 +36,25 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
           </div>
         </div>
 
-        {appointment.verifiedByTeacherName && (
+        {(isVerifying || teacherName) && (
           <div className="bg-amber-50 px-8 py-5 border-b border-amber-100 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left animate-in slide-in-from-top-4 duration-500">
             <div className="p-3 bg-amber-100 text-amber-700 rounded-full shrink-0 shadow-sm">
               <UserCheck size={24} />
             </div>
             <div>
-              <p className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">Teacher Verified</p>
+              <p className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">
+                {teacherName ? 'Teacher Verified' : 'Gate Verification'}
+              </p>
               <p className="text-amber-900 font-medium text-lg leading-snug">
-                <span className="font-bold">{appointment.verifiedByTeacherName}</span> asked for the verification of <span className="font-bold">{appointment.studentName}</span>
+                {teacherName ? (
+                  <>
+                    <span className="font-bold">{teacherName}</span> asked for the verification of <span className="font-bold">{appointment.studentName}</span>
+                  </>
+                ) : (
+                  <>
+                    Requesting entry for <span className="font-bold">{appointment.studentName}</span>
+                  </>
+                )}
               </p>
             </div>
           </div>

@@ -192,7 +192,7 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO public.appointments (
   student_id, student_id_number, student_name, section, 
   counselor_id, counselor_name, 
-  date, time, reason, status
+  date, time, reason, status, verified_by_teacher_name
 )
 SELECT 
   s.id, s.student_id_number, s.name, s.section,
@@ -200,7 +200,8 @@ SELECT
   to_char(now(), 'YYYY-MM-DD'),
   to_char(now(), 'HH12:MI AM'),
   'NFC Gate Verification Test',
-  'CONFIRMED'
+  'VERIFYING',
+  'Jem Palaganas'
 FROM public.students s, public.counselors c
 WHERE s.student_id_number = '02000385842'
 AND c.email = 'wackylooky@gmail.com'
