@@ -33,28 +33,28 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
           </div>
         </div>
 
-        <div className="p-10 space-y-6">
-          {appointment.verifiedByTeacherName && (
-             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center sm:items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-2">
-                <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0 mt-1">
-                     <UserCheck size={20} />
-                </div>
-                <div className="text-center sm:text-left">
-                    <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Teacher Verification</p>
-                    <p className="text-slate-800 font-medium text-lg leading-snug">
-                        <span className="font-bold text-indigo-700">{appointment.verifiedByTeacherName}</span> asked for the verification of <span className="font-bold text-indigo-700">{appointment.studentName}</span>.
-                    </p>
-                </div>
-             </div>
-          )}
+        {appointment.verifiedByTeacherName && (
+          <div className="bg-amber-50 px-8 py-5 border-b border-amber-100 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left animate-in slide-in-from-top-4 duration-500">
+            <div className="p-3 bg-amber-100 text-amber-700 rounded-full shrink-0 shadow-sm">
+              <UserCheck size={24} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">Teacher Verified</p>
+              <p className="text-amber-900 font-medium text-lg leading-snug">
+                <span className="font-bold">{appointment.verifiedByTeacherName}</span> asked for the verification of <span className="font-bold">{appointment.studentName}</span>
+              </p>
+            </div>
+          </div>
+        )}
 
-          <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
-            <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
-              <User size={32} />
+        <div className="p-8 space-y-6">
+          <div className="flex items-center gap-5 p-5 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
+            <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
+              <User size={28} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Student</p>
-              <h3 className="text-2xl font-bold text-slate-900 truncate leading-tight">{appointment.studentName}</h3>
+              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">Student</p>
+              <h3 className="text-xl font-bold text-slate-900 truncate leading-tight">{appointment.studentName}</h3>
               <p className="text-slate-500 text-sm font-medium">{appointment.section}</p>
             </div>
           </div>
@@ -73,22 +73,22 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
              </div>
           </div>
 
-          <div className="flex flex-col gap-3 pt-4">
+          <div className="flex flex-col gap-3 pt-2">
             <button
               onClick={() => handleDecision(AppointmentStatus.ACCEPTED)}
-              className="w-full flex items-center justify-center gap-3 py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-[0.98] transition-all"
+              className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-[0.98] transition-all"
             >
               <CheckCircle size={24} /> ALLOW ENTRY
             </button>
             <button
               onClick={() => handleDecision(AppointmentStatus.DENIED)}
-              className="w-full flex items-center justify-center gap-3 py-4 bg-white border-2 border-red-100 text-red-600 rounded-3xl font-bold hover:bg-red-50 active:scale-[0.98] transition-all"
+              className="w-full flex items-center justify-center gap-3 py-3 bg-white border-2 border-red-100 text-red-600 rounded-2xl font-bold hover:bg-red-50 active:scale-[0.98] transition-all"
             >
               <XCircle size={20} /> DENY ENTRY
             </button>
           </div>
 
-          <p className="text-center text-slate-400 text-xs font-medium italic">
+          <p className="text-center text-slate-400 text-[10px] font-medium italic">
             Please verify the student's appointment details before allowing entry.
           </p>
         </div>
