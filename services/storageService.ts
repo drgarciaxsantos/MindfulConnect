@@ -66,7 +66,8 @@ export const getAppointments = async (): Promise<Appointment[]> => {
     transferCounselorAccepted: d.transfer_counselor_accepted,
     transferStudentAccepted: d.transfer_student_accepted,
     rescheduleProposedDate: d.reschedule_proposed_date,
-    rescheduleProposedTime: d.reschedule_proposed_time
+    rescheduleProposedTime: d.reschedule_proposed_time,
+    verifiedByTeacherName: d.verified_by_teacher_name
   }));
 };
 

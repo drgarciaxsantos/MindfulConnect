@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Appointment, AppointmentStatus } from '../../types';
-import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, X } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck } from 'lucide-react';
 import { updateAppointmentStatus } from '../../services/storageService';
 
 interface VerificationModalProps {
@@ -22,31 +22,38 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 relative">
-        <button 
-          onClick={onClose}
-          className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-10"
-        >
-          <X size={20} />
-        </button>
-
         <div className="bg-indigo-600 p-8 text-center text-white relative">
            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-pulse" />
           <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md shadow-inner ring-4 ring-white/10">
             <ShieldCheck size={40} strokeWidth={2.5} />
           </div>
-          <h2 className="text-3xl font-black tracking-tight mb-2 uppercase drop-shadow-sm">Gate Entry Request</h2>
+          <h2 className="text-2xl font-black tracking-tight mb-2 uppercase drop-shadow-sm">Verification Request</h2>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs font-bold tracking-widest uppercase border border-white/20">
             <AlertCircle size={14} /> Action Required
           </div>
         </div>
 
         <div className="p-10 space-y-8">
+          {appointment.verifiedByTeacherName && (
+             <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
+                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
+                     <UserCheck className="text-indigo-600" size={20} />
+                </div>
+                <div>
+                    <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Teacher Request</p>
+                    <p className="text-sm text-indigo-900 font-medium leading-tight">
+                        <span className="font-bold">{appointment.verifiedByTeacherName}</span> requested verification for <span className="font-bold">{appointment.studentName}</span>.
+                    </p>
+                </div>
+             </div>
+          )}
+
           <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
             <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
               <User size={32} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Student At Gate</p>
+              <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Student</p>
               <h3 className="text-2xl font-bold text-slate-900 truncate leading-tight">{appointment.studentName}</h3>
               <p className="text-slate-500 text-sm font-medium">{appointment.section}</p>
             </div>
@@ -82,7 +89,7 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
           </div>
 
           <p className="text-center text-slate-400 text-xs font-medium italic">
-            This student has been scanned by the Gatekeeper.
+            Please verify the student's appointment details before allowing entry.
           </p>
         </div>
       </div>

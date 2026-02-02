@@ -70,6 +70,9 @@ export interface Appointment {
   // Reschedule fields
   rescheduleProposedDate?: string | null;
   rescheduleProposedTime?: string | null;
+  
+  // Gate Verification
+  verifiedByTeacherName?: string;
 }
 
 export interface SystemNotification {
