@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Appointment, AppointmentStatus } from '../../types';
 import { getAppointments, updateAppointmentStatus } from '../../services/storageService';
@@ -60,7 +59,7 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
   const historyList = appointments.filter(a => 
     a.status === AppointmentStatus.ACCEPTED || 
     a.status === AppointmentStatus.DENIED || 
-    a.status === AppointmentStatus.COMPLETED ||
+    a.status === AppointmentStatus.COMPLETED || 
     a.status === AppointmentStatus.CANCELLED
   );
 
@@ -176,9 +175,13 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                 </div>
                 
                 {appt.verifiedByTeacherName && (
-                  <div className="mb-4 inline-flex items-center gap-2 bg-amber-50 text-amber-800 text-xs font-bold px-3 py-2 rounded-lg border border-amber-100">
-                     <UserCheck size={14} />
-                     Verified by: {appt.verifiedByTeacherName}
+                  <div className="mb-4 flex items-start gap-3 bg-amber-50 text-amber-900 text-sm p-3 rounded-xl border border-amber-200 shadow-sm">
+                     <div className="bg-amber-100 p-1.5 rounded-full shrink-0 text-amber-700">
+                       <UserCheck size={16} />
+                     </div>
+                     <span className="font-medium py-0.5">
+                       <span className="font-bold">{appt.verifiedByTeacherName}</span> asked for the verification of <span className="font-bold">{appt.studentName}</span>
+                     </span>
                   </div>
                 )}
                 
