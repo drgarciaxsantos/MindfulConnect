@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Appointment, AppointmentStatus } from '../../types';
 import { getAppointments, updateAppointmentStatus } from '../../services/storageService';
@@ -172,6 +173,7 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                   <span className="flex items-center gap-1.5"><Clock size={16} className="text-indigo-500" /> {appt.time} Today</span>
                   <span className="flex items-center gap-1.5"><MapPin size={16} className="text-indigo-500" /> {appt.section || 'No Section'}</span>
                   {appt.studentIdNumber && <span className="flex items-center gap-1.5"><UserIcon size={16} className="text-indigo-500" /> ID: {appt.studentIdNumber}</span>}
+                  {appt.verifiedByTeacherName && <span className="flex items-center gap-1.5 font-medium text-indigo-600"><UserCheck size={16} /> Verified by: {appt.verifiedByTeacherName}</span>}
                 </div>
                 
                 {(appt.verifiedByTeacherName || appt.status === AppointmentStatus.VERIFYING) && (

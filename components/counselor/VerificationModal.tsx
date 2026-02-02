@@ -48,7 +48,7 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
               <p className="text-amber-900 font-medium text-lg leading-snug">
                 {teacherName ? (
                   <>
-                    <span className="font-bold">{teacherName}</span> asked for the verification of <span className="font-bold">{appointment.studentName}</span>
+                    <span className="font-bold">{teacherName}</span> is requesting entry for <span className="font-bold">{appointment.studentName}</span>
                   </>
                 ) : (
                   <>
@@ -84,6 +84,15 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Reason</p>
                 <div className="text-slate-700 font-bold truncate">{appointment.reason}</div>
              </div>
+             {teacherName && (
+               <div className="col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Verified By</p>
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <UserCheck size={16} className="text-indigo-500" />
+                    <span className="font-bold">{teacherName}</span>
+                  </div>
+               </div>
+             )}
           </div>
 
           <div className="flex flex-col gap-3 pt-2">
