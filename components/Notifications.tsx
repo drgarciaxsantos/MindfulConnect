@@ -1,10 +1,10 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Info, Footprints } from 'lucide-react';
 import { SystemNotification, User } from '../types';
 import { getSystemNotifications, markNotificationRead, markAllNotificationsRead } from '../services/storageService';
 
-export type NotificationType = 'success' | 'error' | 'info';
+export type NotificationType = 'success' | 'error' | 'info' | 'incoming';
 
 interface Toast {
   id: string;
@@ -70,7 +70,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
+    }, 5000); // Slightly longer timeout to read high priority messages
   }, []);
 
   const removeToast = (id: string) => {
@@ -98,19 +98,21 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setUser
     }}>
       {children}
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-xs px-4">
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-sm px-4">
         {toasts.map(toast => (
           <div 
             key={toast.id} 
             className={`flex items-center gap-3 p-4 rounded-xl shadow-lg border animate-in slide-in-from-bottom-4 duration-300 ${
               toast.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
               toast.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' :
+              toast.type === 'incoming' ? 'bg-cyan-50 border-cyan-200 text-cyan-800 border-l-4 border-l-cyan-500 shadow-cyan-100' :
               'bg-blue-50 border-blue-100 text-blue-800'
             }`}
           >
-            {toast.type === 'success' && <CheckCircle size={18} />}
-            {toast.type === 'error' && <AlertCircle size={18} />}
-            {toast.type === 'info' && <Info size={18} />}
+            {toast.type === 'success' && <CheckCircle size={20} />}
+            {toast.type === 'error' && <AlertCircle size={20} />}
+            {toast.type === 'info' && <Info size={20} />}
+            {toast.type === 'incoming' && <div className="animate-bounce"><Footprints size={20} /></div>}
             <p className="text-sm font-medium flex-1">{toast.message}</p>
             <button onClick={() => removeToast(toast.id)} className="p-1 hover:bg-black/5 rounded">
               <X size={14} />

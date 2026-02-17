@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Appointment, AppointmentStatus, DayAvailability } from '../../types';
 import { getAppointments, updateAppointmentStatus, rescheduleAppointment, cancelRescheduleProposal, getCounselorAvailability, subscribeToAppointments, getCounselors, initiateTransfer, respondToTransfer, cancelTransfer } from '../../services/storageService';
-import { Clock, CheckCircle, XCircle, Phone, Hash, BookOpen, CalendarDays, RefreshCw, ArrowRightLeft, UserCheck, Loader2, X, Search, SortAsc, SortDesc, ChevronLeft, ChevronRight, Ban, LayoutList, Calendar as CalendarIcon, Filter } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Phone, Hash, BookOpen, CalendarDays, RefreshCw, ArrowRightLeft, UserCheck, Loader2, X, Search, SortAsc, SortDesc, ChevronLeft, ChevronRight, Ban, LayoutList, Calendar as CalendarIcon, Filter, Footprints, ShieldCheck } from 'lucide-react';
 import AvailabilityManager from './AvailabilityManager';
 import { format, endOfMonth, eachDayOfInterval, addMonths, endOfWeek, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { useNotification } from '../Notifications';
+import { supabase } from '../../services/supabaseClient';
 
 // Polyfills for missing date-fns exports
 const parseISO = (str: string) => new Date(str.includes('T') ? str : str + 'T00:00:00');
@@ -55,6 +57,9 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
   const [targetCounselorId, setTargetCounselorId] = useState<string>('');
   const [isTransferring, setIsTransferring] = useState(false);
 
+  // Scanner Popup State
+  const [scannerPopups, setScannerPopups] = useState<{id: string, name: string, time: string}[]>([]);
+
   useEffect(() => {
     loadInitialData();
     const unsubscribe = subscribeToAppointments(() => {
@@ -62,6 +67,67 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     });
     return () => unsubscribe();
   }, [user.id]);
+
+  useEffect(() => {
+    // Listen for high-priority gate notifications (Gatekeeper App updates via 'notifications' table)
+    const gateChannel = supabase
+      .channel('gate_alerts')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          const msg = payload.new.message;
+          if (msg && msg.startsWith('GATE_UPDATE:')) {
+            const studentInfo = msg.replace('GATE_UPDATE:', '').trim();
+            showNotification(`Student Incoming: ${studentInfo} is on their way to the Guidance Office.`, 'incoming');
+            refreshAppointments(); 
+          }
+        }
+      )
+      .subscribe();
+
+    // Listen for NFC Scanner Logs (ESP32 via 'verification_logs' table)
+    const nfcChannel = supabase.channel('nfc_scans')
+      .on(
+        'postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'verification_logs' 
+        }, 
+        (payload) => {
+          const newRecord = payload.new;
+          const id = Date.now().toString();
+          // Use the timestamp from the record or current time if needed
+          const dateObj = newRecord.created_at ? new Date(newRecord.created_at) : new Date();
+          const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          
+          const newPopup = {
+            id,
+            name: newRecord.student_name,
+            time: timeStr
+          };
+          
+          setScannerPopups(prev => [...prev, newPopup]);
+          
+          // Auto dismiss after 5 seconds
+          setTimeout(() => {
+            setScannerPopups(prev => prev.filter(p => p.id !== id));
+          }, 5000);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(gateChannel);
+      supabase.removeChannel(nfcChannel);
+    };
+  }, [user.id, showNotification]);
 
   useEffect(() => {
     if (rescheduleId) {
@@ -284,6 +350,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
         case AppointmentStatus.CONFIRMED: return 'bg-blue-500';
         case AppointmentStatus.COMPLETED: return 'bg-emerald-500';
         case AppointmentStatus.CANCELLED: return 'bg-red-500';
+        case AppointmentStatus.DEPARTED: return 'bg-cyan-500';
         default: return 'bg-slate-400';
     }
   };
@@ -291,7 +358,27 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
   if (activeTab === 'availability') return <AvailabilityManager user={user} />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Realtime Scanner Notification Area */}
+      <div className="fixed top-24 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+        {scannerPopups.map(popup => (
+          <div key={popup.id} className="bg-white border-l-4 border-indigo-600 shadow-xl p-4 rounded-r-lg w-80 pointer-events-auto animate-in slide-in-from-right fade-in duration-300">
+             <div className="flex items-start justify-between">
+                <div>
+                   <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">NFC Verified</p>
+                   <h4 className="text-lg font-bold text-slate-800 leading-tight">{popup.name}</h4>
+                   <p className="text-sm text-slate-500 mt-1 flex items-center gap-1">
+                      <Clock size={14} /> {popup.time}
+                   </p>
+                </div>
+                <div className="h-8 w-8 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
+                   <ShieldCheck size={18} />
+                </div>
+             </div>
+          </div>
+        ))}
+      </div>
+
       <header className="flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -342,7 +429,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
               <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">
                  <Filter size={14} /> Filter:
               </span>
-              {['all', AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED].map(f => (
+              {['all', AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.DEPARTED, AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED].map(f => (
                 <button 
                   key={f} 
                   onClick={() => setFilter(f)} 
@@ -352,7 +439,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                       : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
                   }`}
                 >
-                  {f}
+                  {f === AppointmentStatus.DEPARTED ? 'INCOMING' : f}
                 </button>
               ))}
             </div>
@@ -529,13 +616,17 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${
                           app.status === AppointmentStatus.PENDING ? 'bg-amber-100 text-amber-800 border border-amber-200' : 
                           app.status === AppointmentStatus.CONFIRMED ? 'bg-blue-100 text-blue-800 border border-blue-200' : 
                           app.status === AppointmentStatus.COMPLETED ? 'bg-green-100 text-green-800 border border-green-200' : 
                           app.status === AppointmentStatus.CANCELLED ? 'bg-red-100 text-red-800 border border-red-200' : 
+                          app.status === AppointmentStatus.DEPARTED ? 'bg-cyan-100 text-cyan-800 border border-cyan-200 animate-pulse' :
                           'bg-slate-100 text-slate-800'
-                        }`}>{app.status}</span>
+                        }`}>
+                          {app.status === AppointmentStatus.DEPARTED && <Footprints size={12} />}
+                          {app.status === AppointmentStatus.DEPARTED ? 'INCOMING' : app.status}
+                        </span>
                       </div>
                     </div>
                     
@@ -672,10 +763,10 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                       </>
                     ) : !rescheduleId && (
                       <>
-                        {app.status === AppointmentStatus.PENDING && (
+                        {(app.status === AppointmentStatus.PENDING || app.status === AppointmentStatus.DEPARTED) && (
                            <>
-                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CONFIRMED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"><CheckCircle size={16} /> Confirm</button>
-                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CANCELLED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"><XCircle size={16} /> Cancel</button>
+                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CONFIRMED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"><CheckCircle size={16} /> {app.status === AppointmentStatus.DEPARTED ? 'Arrived' : 'Confirm'}</button>
+                             {app.status === AppointmentStatus.PENDING && <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CANCELLED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"><XCircle size={16} /> Cancel</button>}
                            </>
                         )}
                         {app.status === AppointmentStatus.CONFIRMED && (

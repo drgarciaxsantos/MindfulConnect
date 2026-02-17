@@ -64,7 +64,8 @@ INSERT INTO public.appointment_statuses (status) VALUES
 ('CONFIRMED'),
 ('CANCELLED'),
 ('COMPLETED'),
-('VERIFYING')
+('VERIFYING'),
+('DEPARTED')
 ON CONFLICT (status) DO NOTHING;
 
 -- Data Migration: Convert old statuses to new ones
@@ -387,3 +388,10 @@ BEGIN
     (s_id, s_num, s_name, s_sec, sharah_id, 'Ms. Christina Sharah K. Manangguit', '2025-12-08', '12:00', 'Manual Booking', 'CONFIRMED')
     ON CONFLICT DO NOTHING;
 END $$;
+
+-- 16. Verification Logs Table (For ESP32 Realtime)
+CREATE TABLE IF NOT EXISTS public.verification_logs (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  student_name text NOT NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
