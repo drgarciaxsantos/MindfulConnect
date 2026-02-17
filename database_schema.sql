@@ -389,14 +389,14 @@ BEGIN
     ON CONFLICT DO NOTHING;
 END $$;
 
--- 16. Verification Logs Table (For ESP32 Realtime)
+-- 16. Verification Logs Table (Optional for history, but not for UI Trigger)
 CREATE TABLE IF NOT EXISTS public.verification_logs (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   student_name text NOT NULL,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 17. MAIN RPC FOR ESP32: Update Appointment AND Log Verification
+-- 17. MAIN RPC FOR ESP32: Update Appointment AND Trigger Realtime Modal
 CREATE OR REPLACE FUNCTION process_nfc_scan(p_nfc_uid text)
 RETURNS jsonb AS $$
 DECLARE
@@ -421,10 +421,14 @@ BEGIN
      RETURN jsonb_build_object('success', false, 'message', 'No confirmed appointment today');
   END IF;
 
-  -- 3. Update Status to VERIFYING (Same logic as Auth Web App request)
-  UPDATE appointments SET status = 'VERIFYING' WHERE id = v_appt_id;
+  -- 3. Update Status to VERIFYING (This triggers the Counselor Modal via Layout.tsx)
+  -- Also set the verifier name to 'Gate Scanner' to indicate NFC source
+  UPDATE appointments 
+  SET status = 'VERIFYING',
+      verified_by_teacher_name = 'Gate Scanner'
+  WHERE id = v_appt_id;
 
-  -- 4. Insert Log (This triggers the Counselor Dashboard Popup)
+  -- 4. Insert Log (Optional for audit)
   INSERT INTO verification_logs (student_name) VALUES (v_student_name);
 
   RETURN jsonb_build_object('success', true, 'student_name', v_student_name);
