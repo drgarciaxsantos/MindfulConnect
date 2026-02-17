@@ -410,8 +410,9 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'message', 'Card not registered');
   END IF;
 
-  -- 2. Find Confirmed Appointment for TODAY
-  -- Matches logic in get_nfc_appointment
+  -- 2. Find Confirmed Appointment for TODAY (Ignored Time Constraint)
+  -- The UI Modal will handle the "Too Early" warning if needed.
+  -- This ensures the modal *always* pops up for a confirmed appointment today.
   SELECT id INTO v_appt_id FROM appointments 
   WHERE student_id = v_student_id 
   AND status = 'CONFIRMED'
@@ -422,13 +423,12 @@ BEGIN
   END IF;
 
   -- 3. Update Status to VERIFYING (This triggers the Counselor Modal via Layout.tsx)
-  -- Also set the verifier name to 'Gate Scanner' to indicate NFC source
   UPDATE appointments 
   SET status = 'VERIFYING',
       verified_by_teacher_name = 'Gate Scanner'
   WHERE id = v_appt_id;
 
-  -- 4. Insert Log (Optional for audit)
+  -- 4. Insert Log (Optional)
   INSERT INTO verification_logs (student_name) VALUES (v_student_name);
 
   RETURN jsonb_build_object('success', true, 'student_name', v_student_name);

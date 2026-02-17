@@ -32,44 +32,58 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
   // Global listener for Gate Requests (VERIFYING status)
   useEffect(() => {
     if (user && user.role === UserRole.COUNSELOR) {
-      // 1. Initial Check
+      // 1. Initial Check function
       const checkPendingGateRequests = async () => {
-        const all = await getAppointments();
-        // Look for VERIFYING requests assigned to this counselor
-        const pending = all.find(a => 
-          a.status === AppointmentStatus.VERIFYING && 
-          String(a.counselorId) === String(user.id)
-        );
-        if (pending) {
-          setGateRequest(pending);
-        } else {
-          setGateRequest(null);
+        try {
+          const all = await getAppointments();
+          // Look for VERIFYING requests assigned to this counselor
+          const pending = all.find(a => 
+            a.status === AppointmentStatus.VERIFYING && 
+            String(a.counselorId).toLowerCase() === String(user.id).toLowerCase()
+          );
+          
+          if (pending) {
+            console.log("Found pending gate request:", pending);
+            setGateRequest(pending);
+          } else {
+            setGateRequest(null);
+          }
+        } catch (err) {
+          console.error("Error checking pending requests:", err);
         }
       };
       
+      // Run initial check
       checkPendingGateRequests();
 
       // 2. Realtime Subscription
+      // We listen to ALL appointments changes to be safe, then filter in JS
       const channel = supabase.channel('global_gate_watch')
         .on(
           'postgres_changes', 
           { 
             event: 'UPDATE', 
             schema: 'public', 
-            table: 'appointments',
-            filter: `counselor_id=eq.${user.id}` 
+            table: 'appointments' 
           }, 
           (payload) => {
-            if (payload.new.status === AppointmentStatus.VERIFYING) {
-              // Trigger a full fetch to get joined data (student name, etc)
-              checkPendingGateRequests();
-            } else if (
-              gateRequest && 
-              payload.new.id === gateRequest.id && 
-              payload.new.status !== AppointmentStatus.VERIFYING
-            ) {
-              // If the current request was handled elsewhere, close modal
-              setGateRequest(null);
+            const newRecord = payload.new as any;
+            const myId = String(user.id).toLowerCase();
+            const recordCounselorId = String(newRecord.counselor_id).toLowerCase();
+
+            // Only care if it belongs to this counselor
+            if (recordCounselorId === myId) {
+               if (newRecord.status === AppointmentStatus.VERIFYING) {
+                 // Trigger a full fetch to get fresh data
+                 checkPendingGateRequests();
+               } else if (
+                 gateRequest && 
+                 newRecord.id === gateRequest.id && 
+                 newRecord.status !== AppointmentStatus.VERIFYING
+               ) {
+                 // If the current request was handled (confirmed/cancelled), close modal
+                 setGateRequest(null);
+               }
             }
           }
         )
