@@ -395,3 +395,38 @@ CREATE TABLE IF NOT EXISTS public.verification_logs (
   student_name text NOT NULL,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- 17. MAIN RPC FOR ESP32: Update Appointment AND Log Verification
+CREATE OR REPLACE FUNCTION process_nfc_scan(p_nfc_uid text)
+RETURNS jsonb AS $$
+DECLARE
+  v_student_id uuid;
+  v_student_name text;
+  v_appt_id uuid;
+BEGIN
+  -- 1. Get Student
+  SELECT id, name INTO v_student_id, v_student_name FROM students WHERE nfc_uid = p_nfc_uid;
+  IF v_student_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Card not registered');
+  END IF;
+
+  -- 2. Find Confirmed Appointment for TODAY
+  -- Matches logic in get_nfc_appointment
+  SELECT id INTO v_appt_id FROM appointments 
+  WHERE student_id = v_student_id 
+  AND status = 'CONFIRMED'
+  AND date = to_char(now() AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD');
+
+  IF v_appt_id IS NULL THEN
+     RETURN jsonb_build_object('success', false, 'message', 'No confirmed appointment today');
+  END IF;
+
+  -- 3. Update Status to VERIFYING (Same logic as Auth Web App request)
+  UPDATE appointments SET status = 'VERIFYING' WHERE id = v_appt_id;
+
+  -- 4. Insert Log (This triggers the Counselor Dashboard Popup)
+  INSERT INTO verification_logs (student_name) VALUES (v_student_name);
+
+  RETURN jsonb_build_object('success', true, 'student_name', v_student_name);
+END;
+$$ LANGUAGE plpgsql;

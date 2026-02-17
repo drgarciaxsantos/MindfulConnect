@@ -69,7 +69,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
   }, [user.id]);
 
   useEffect(() => {
-    // Listen for high-priority gate notifications (Gatekeeper App updates via 'notifications' table)
+    // 1. Listen for GATE ALERTS (Teacher/Guard App via 'notifications')
     const gateChannel = supabase
       .channel('gate_alerts')
       .on(
@@ -91,8 +91,9 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
       )
       .subscribe();
 
-    // Listen for NFC Scanner Logs (ESP32 via 'verification_logs' table)
-    const nfcChannel = supabase.channel('nfc_scans')
+    // 2. Listen for NFC SCANS (ESP32 via 'verification_logs')
+    // This provides the visual popup when the ESP32 scans successfully
+    const nfcChannel = supabase.channel('nfc_realtime_popup')
       .on(
         'postgres_changes', 
         { 
@@ -102,8 +103,9 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
         }, 
         (payload) => {
           const newRecord = payload.new;
-          const id = Date.now().toString();
-          // Use the timestamp from the record or current time if needed
+          // Create unique ID for the popup
+          const id = Date.now().toString() + Math.random().toString();
+          
           const dateObj = newRecord.created_at ? new Date(newRecord.created_at) : new Date();
           const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           
@@ -115,10 +117,13 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
           
           setScannerPopups(prev => [...prev, newPopup]);
           
-          // Auto dismiss after 5 seconds
+          // Auto dismiss after 5 seconds as requested
           setTimeout(() => {
             setScannerPopups(prev => prev.filter(p => p.id !== id));
           }, 5000);
+
+          // Also refresh the appointment list to show updated status
+          refreshAppointments();
         }
       )
       .subscribe();
@@ -359,20 +364,25 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
 
   return (
     <div className="space-y-6 relative">
-      {/* Realtime Scanner Notification Area */}
-      <div className="fixed top-24 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      {/* Realtime Scanner Notification Area (Top Right, Clean Modern Design) */}
+      <div className="fixed top-24 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
         {scannerPopups.map(popup => (
-          <div key={popup.id} className="bg-white border-l-4 border-indigo-600 shadow-xl p-4 rounded-r-lg w-80 pointer-events-auto animate-in slide-in-from-right fade-in duration-300">
-             <div className="flex items-start justify-between">
-                <div>
-                   <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">NFC Verified</p>
-                   <h4 className="text-lg font-bold text-slate-800 leading-tight">{popup.name}</h4>
-                   <p className="text-sm text-slate-500 mt-1 flex items-center gap-1">
-                      <Clock size={14} /> {popup.time}
-                   </p>
+          <div 
+            key={popup.id} 
+            className="pointer-events-auto w-80 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-white/20 overflow-hidden animate-in slide-in-from-right fade-in duration-500 ease-out"
+          >
+             <div className="h-1 bg-gradient-to-r from-indigo-500 to-cyan-400" />
+             <div className="p-4 flex items-start gap-4">
+                <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-full shrink-0 shadow-sm border border-indigo-100">
+                   <ShieldCheck size={24} />
                 </div>
-                <div className="h-8 w-8 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
-                   <ShieldCheck size={18} />
+                <div className="flex-1 min-w-0">
+                   <div className="flex justify-between items-start mb-0.5">
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Verification Request</p>
+                      <span className="text-[10px] text-slate-400 font-mono">{popup.time}</span>
+                   </div>
+                   <h4 className="text-lg font-bold text-slate-800 leading-tight truncate">{popup.name}</h4>
+                   <p className="text-xs text-slate-500 mt-1 font-medium">Scanned at Gate</p>
                 </div>
              </div>
           </div>
