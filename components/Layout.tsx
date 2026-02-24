@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { User, UserRole, Appointment, AppointmentStatus } from '../types';
+import { User, UserRole, Appointment, AppointmentStatus, SystemNotification } from '../types';
 import { LogOut, LayoutDashboard, Calendar, FileText, CalendarPlus, CalendarCheck, Bell, Check, ArrowRight, ShieldCheck, BrainCircuit } from 'lucide-react';
 import { checkAndSendReminders, getAppointments } from '../services/storageService';
 import { useNotification } from './Notifications';
@@ -15,10 +14,104 @@ interface LayoutProps {
   onTabChange?: (tab: string) => void;
 }
 
+const NotificationBell: React.FC<{
+  notifications: SystemNotification[];
+  unreadCount: number;
+  refreshNotifications: () => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  onTabChange?: (tab: string) => void;
+  positionClasses?: string;
+}> = ({ notifications, unreadCount, refreshNotifications, markAsRead, onTabChange, positionClasses = "right-0 mt-2" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={bellRef}>
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!isOpen) refreshNotifications();
+          setIsOpen(!isOpen);
+        }}
+        className="p-2.5 rounded-full hover:bg-slate-100 text-slate-600 transition-all relative border border-transparent hover:border-slate-200"
+      >
+        <Bell size={20} />
+        {unreadCount > 0 && (
+          <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center px-1 border-2 border-white animate-in zoom-in-50">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className={`absolute ${positionClasses} w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200`}>
+          <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 className="font-bold text-sm text-slate-700">Notifications</h3>
+            {unreadCount > 0 && (
+              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">
+                {unreadCount} UNREAD
+              </span>
+            )}
+          </div>
+          <div className="max-h-80 overflow-y-auto custom-scrollbar">
+            {notifications.length === 0 ? (
+              <div className="p-10 text-center text-slate-500 text-sm flex flex-col items-center gap-2">
+                <Bell size={24} className="text-slate-200" />
+                No notifications found.
+              </div>
+            ) : (
+              notifications.slice(0, 10).map(n => (
+                <div 
+                  key={n.id} 
+                  className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors flex gap-3 group ${n.isRead ? 'opacity-60 bg-white' : 'bg-indigo-50/30'}`}
+                >
+                  <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 transition-colors ${n.isRead ? 'bg-slate-200' : 'bg-indigo-500'}`} />
+                  <div className="flex-1">
+                    <p className={`text-sm leading-snug ${n.isRead ? 'text-slate-600' : 'text-slate-900 font-semibold'}`}>{n.message}</p>
+                    <p className="text-[10px] text-slate-400 mt-1.5 font-medium">{new Date(n.createdAt).toLocaleDateString()} • {new Date(n.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                  </div>
+                  {!n.isRead && (
+                    <button 
+                      onClick={() => markAsRead(n.id)}
+                      className="text-indigo-600 hover:text-indigo-800 self-start opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-indigo-100 rounded-lg"
+                      title="Mark as read"
+                    >
+                      <Check size={14} strokeWidth={3} />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+          <div className="p-2 bg-slate-50 border-t border-slate-100">
+            <button 
+              onClick={() => {
+                setIsOpen(false);
+                onTabChange?.('notifications');
+              }}
+              className="w-full flex items-center justify-center gap-1 text-xs font-bold text-indigo-600 hover:bg-indigo-100 py-2.5 rounded-lg transition-colors"
+            >
+              View all notifications <ArrowRight size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, onTabChange }) => {
   const { notifications, unreadCount, markAsRead, refreshNotifications } = useNotification();
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notificationRef = useRef<HTMLDivElement>(null);
   
   // Realtime Gate Request State
   const [gateRequest, setGateRequest] = useState<Appointment | null>(null);
@@ -95,96 +188,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
     }
   }, [user, gateRequest]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleMarkRead = async (id: string) => {
-    await markAsRead(id);
-  };
-
-  const NotificationBell = ({ positionClasses = "right-0 mt-2" }: { positionClasses?: string }) => (
-    <div className="relative" ref={notificationRef}>
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!showNotifications) {
-            refreshNotifications();
-          }
-          setShowNotifications(!showNotifications);
-        }}
-        className="p-2.5 rounded-full hover:bg-slate-100 text-slate-600 transition-all relative border border-transparent hover:border-slate-200"
-      >
-        <Bell size={20} />
-        {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center px-1 border-2 border-white animate-in zoom-in-50">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {showNotifications && (
-        <div className={`absolute ${positionClasses} w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200`}>
-          <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 className="font-bold text-sm text-slate-700">Notifications</h3>
-            {unreadCount > 0 && (
-              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">
-                {unreadCount} UNREAD
-              </span>
-            )}
-          </div>
-          <div className="max-h-80 overflow-y-auto custom-scrollbar">
-            {notifications.length === 0 ? (
-              <div className="p-10 text-center text-slate-500 text-sm flex flex-col items-center gap-2">
-                <Bell size={24} className="text-slate-200" />
-                No notifications found.
-              </div>
-            ) : (
-              notifications.slice(0, 10).map(n => (
-                <div 
-                  key={n.id} 
-                  className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors flex gap-3 group ${n.isRead ? 'opacity-60 bg-white' : 'bg-indigo-50/30'}`}
-                >
-                  <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 transition-colors ${n.isRead ? 'bg-slate-200' : 'bg-indigo-500'}`} />
-                  <div className="flex-1">
-                    <p className={`text-sm leading-snug ${n.isRead ? 'text-slate-600' : 'text-slate-900 font-semibold'}`}>{n.message}</p>
-                    <p className="text-[10px] text-slate-400 mt-1.5 font-medium">{new Date(n.createdAt).toLocaleDateString()} • {new Date(n.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                  </div>
-                  {!n.isRead && (
-                    <button 
-                      onClick={() => handleMarkRead(n.id)}
-                      className="text-indigo-600 hover:text-indigo-800 self-start opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-indigo-100 rounded-lg"
-                      title="Mark as read"
-                    >
-                      <Check size={14} strokeWidth={3} />
-                    </button>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-          <div className="p-2 bg-slate-50 border-t border-slate-100">
-            <button 
-              onClick={() => {
-                setShowNotifications(false);
-                onTabChange?.('notifications');
-              }}
-              className="w-full flex items-center justify-center gap-1 text-xs font-bold text-indigo-600 hover:bg-indigo-100 py-2.5 rounded-lg transition-colors"
-            >
-              View all notifications <ArrowRight size={12} />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   if (!user) return <>{children}</>;
 
   if (user.role === UserRole.STUDENT) {
@@ -199,7 +202,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
           </div>
           
           <div className="flex items-center gap-1">
-            <NotificationBell positionClasses="right-0 mt-3 origin-top-right shadow-2xl" />
+            <NotificationBell 
+              notifications={notifications}
+              unreadCount={unreadCount}
+              refreshNotifications={refreshNotifications}
+              markAsRead={markAsRead}
+              onTabChange={onTabChange}
+              positionClasses="right-0 mt-3 origin-top-right shadow-2xl" 
+            />
             <button
               onClick={onLogout}
               className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-slate-50"
@@ -292,7 +302,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
         </nav>
 
         <div className="p-4 border-t border-slate-100">
-           <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-slate-50 rounded-xl">
+           <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-slate-50 rounded-xl relative">
               <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
                 {user.name.charAt(0)}
               </div>
@@ -300,6 +310,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
                 <p className="text-sm font-bold text-slate-800 truncate">{user.name.split(' ')[0]}</p>
                 <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
               </div>
+              <NotificationBell 
+                notifications={notifications}
+                unreadCount={unreadCount}
+                refreshNotifications={refreshNotifications}
+                markAsRead={markAsRead}
+                onTabChange={onTabChange}
+                positionClasses="bottom-full left-0 mb-2 w-80 shadow-2xl origin-bottom-left" 
+              />
            </div>
           <button
             onClick={onLogout}
@@ -319,7 +337,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
             <span className="font-bold text-slate-800 text-lg">MindfulConnect</span>
          </div>
          <div className="flex items-center gap-2">
-           <NotificationBell positionClasses="right-0 mt-3 origin-top-right shadow-2xl" />
+           <NotificationBell 
+             notifications={notifications}
+             unreadCount={unreadCount}
+             refreshNotifications={refreshNotifications}
+             markAsRead={markAsRead}
+             onTabChange={onTabChange}
+             positionClasses="right-0 mt-3 origin-top-right shadow-2xl" 
+           />
            <button
             onClick={onLogout}
             className="p-2 text-slate-400 hover:text-red-600 hover:bg-slate-50 rounded-full"

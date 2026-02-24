@@ -417,14 +417,64 @@ export const cancelTransfer = async (appointmentId: string, originalCounselorNam
 
 export const respondToTransfer = async (appointmentId: string, accept: boolean, receivingCounselorId: string, receivingCounselorName: string): Promise<boolean> => {
     try {
-        const { error } = await supabase.from('appointments').update({ transfer_counselor_accepted: accept ? true : null }).eq('id', appointmentId);
-        if(error) throw error;
+        const { data: appt, error: fetchError } = await supabase.from('appointments').select('*').eq('id', appointmentId).single();
+        if (fetchError || !appt) throw fetchError;
+
+        if (!accept) {
+            // Reject transfer
+            const { error } = await supabase.from('appointments').update({ 
+                transfer_request_to_id: null, 
+                transfer_request_to_name: null,
+                transfer_counselor_accepted: false,
+                transfer_student_accepted: false
+            }).eq('id', appointmentId);
+            if(error) throw error;
+            await createNotification(appt.counselor_id, `Transfer to ${receivingCounselorName} declined by receiving counselor.`);
+            return true;
+        }
+
+        // Accept transfer
+        if (appt.transfer_student_accepted) {
+            // Both accepted -> Finalize Transfer
+            const { error } = await supabase.from('appointments').update({ 
+                counselor_id: receivingCounselorId,
+                counselor_name: receivingCounselorName,
+                transfer_request_to_id: null, 
+                transfer_request_to_name: null,
+                transfer_counselor_accepted: false,
+                transfer_student_accepted: false
+            }).eq('id', appointmentId);
+            if(error) throw error;
+            
+            await createNotification(appt.student_id, `Your appointment has been transferred to ${receivingCounselorName}.`);
+            await createNotification(appt.counselor_id, `Appointment transferred to ${receivingCounselorName} successfully.`);
+        } else {
+            // Only counselor accepted so far
+            const { error } = await supabase.from('appointments').update({ transfer_counselor_accepted: true }).eq('id', appointmentId);
+            if(error) throw error;
+        }
         return true; 
     } catch(e) {
         const appt = localAppointments.find(a => a.id === appointmentId);
         if(appt) {
-            if(accept) appt.transferCounselorAccepted = true;
-            else { appt.transferRequestToId = null; appt.transferRequestToName = null; }
+            if(accept) {
+                if (appt.transferStudentAccepted) {
+                    appt.counselorId = receivingCounselorId;
+                    appt.counselorName = receivingCounselorName;
+                    appt.transferRequestToId = null;
+                    appt.transferRequestToName = null;
+                    appt.transferCounselorAccepted = false;
+                    appt.transferStudentAccepted = false;
+                    await createNotification(appt.studentId, `Your appointment has been transferred to ${receivingCounselorName}.`);
+                } else {
+                    appt.transferCounselorAccepted = true;
+                }
+            } else { 
+                appt.transferRequestToId = null; 
+                appt.transferRequestToName = null; 
+                appt.transferCounselorAccepted = false;
+                appt.transferStudentAccepted = false;
+            }
             return true;
         }
         return false;
@@ -433,14 +483,66 @@ export const respondToTransfer = async (appointmentId: string, accept: boolean, 
 
 export const studentRespondToTransfer = async (appointmentId: string, accept: boolean): Promise<boolean> => {
     try {
-        const { error } = await supabase.from('appointments').update({ transfer_student_accepted: accept ? true : null }).eq('id', appointmentId);
-        if(error) throw error;
+        const { data: appt, error: fetchError } = await supabase.from('appointments').select('*').eq('id', appointmentId).single();
+        if (fetchError || !appt) throw fetchError;
+
+        if (!accept) {
+            // Reject transfer
+            const { error } = await supabase.from('appointments').update({ 
+                transfer_request_to_id: null, 
+                transfer_request_to_name: null,
+                transfer_counselor_accepted: false,
+                transfer_student_accepted: false
+            }).eq('id', appointmentId);
+            if(error) throw error;
+            await createNotification(appt.counselor_id, `Student declined transfer to ${appt.transfer_request_to_name}.`);
+            return true;
+        }
+
+        // Accept transfer
+        if (appt.transfer_counselor_accepted) {
+            // Both accepted -> Finalize Transfer
+            const { error } = await supabase.from('appointments').update({ 
+                counselor_id: appt.transfer_request_to_id,
+                counselor_name: appt.transfer_request_to_name,
+                transfer_request_to_id: null, 
+                transfer_request_to_name: null,
+                transfer_counselor_accepted: false,
+                transfer_student_accepted: false
+            }).eq('id', appointmentId);
+            if(error) throw error;
+
+            await createNotification(appt.counselor_id, `Appointment transferred to ${appt.transfer_request_to_name} successfully.`);
+            await createNotification(appt.transfer_request_to_id, `New transferred appointment from ${appt.student_name}.`);
+        } else {
+            // Only student accepted so far
+            const { error } = await supabase.from('appointments').update({ transfer_student_accepted: true }).eq('id', appointmentId);
+            if(error) throw error;
+        }
         return true;
     } catch(e) {
         const appt = localAppointments.find(a => a.id === appointmentId);
         if(appt) {
-            if(accept) appt.transferStudentAccepted = true;
-            else { appt.transferRequestToId = null; appt.transferRequestToName = null; }
+            if(accept) {
+                if (appt.transferCounselorAccepted && appt.transferRequestToId && appt.transferRequestToName) {
+                    const newId = appt.transferRequestToId;
+                    const newName = appt.transferRequestToName;
+                    appt.counselorId = newId;
+                    appt.counselorName = newName;
+                    appt.transferRequestToId = null;
+                    appt.transferRequestToName = null;
+                    appt.transferCounselorAccepted = false;
+                    appt.transferStudentAccepted = false;
+                    await createNotification(appt.counselorId, `Appointment transferred to ${newName} successfully.`);
+                } else {
+                    appt.transferStudentAccepted = true;
+                }
+            } else { 
+                appt.transferRequestToId = null; 
+                appt.transferRequestToName = null; 
+                appt.transferCounselorAccepted = false;
+                appt.transferStudentAccepted = false;
+            }
             return true;
         }
         return false;

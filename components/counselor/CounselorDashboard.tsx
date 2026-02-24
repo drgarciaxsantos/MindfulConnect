@@ -184,7 +184,9 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
 
   const filteredAndSortedAppointments = useMemo(() => {
     let result = appointments.filter(a => {
-      const matchesFilter = filter === 'all' || a.status === filter;
+      const matchesFilter = viewMode === 'calendar' 
+        ? a.status === AppointmentStatus.CONFIRMED 
+        : (filter === 'all' || a.status === filter);
       const studentName = (a.studentName || '').toLowerCase();
       const studentId = (a.studentIdNumber || '').toLowerCase();
       const query = searchQuery.toLowerCase();
@@ -213,7 +215,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     });
 
     return result;
-  }, [appointments, filter, searchQuery, sortBy, sortOrder, selectedDate]);
+  }, [appointments, filter, searchQuery, sortBy, sortOrder, selectedDate, viewMode]);
 
   // Appointments grouped by date for Calendar dots
   const appointmentsByDate = useMemo(() => {
@@ -221,7 +223,9 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     // Use the filtered list (search + status) but ignoring the selectedDate filter
     // so we can see dots for all relevant appointments
     const baseList = appointments.filter(a => {
-        const matchesFilter = filter === 'all' || a.status === filter;
+        const matchesFilter = viewMode === 'calendar'
+          ? a.status === AppointmentStatus.CONFIRMED
+          : (filter === 'all' || a.status === filter);
         const studentName = (a.studentName || '').toLowerCase();
         const studentId = (a.studentIdNumber || '').toLowerCase();
         const query = searchQuery.toLowerCase();
@@ -234,7 +238,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
       map.get(app.date)?.push(app);
     });
     return map;
-  }, [appointments, filter, searchQuery]);
+  }, [appointments, filter, searchQuery, viewMode]);
 
   const toggleSort = (field: SortField) => {
     if (sortBy === field) {
@@ -281,6 +285,20 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
      }
   };
 
+  const handleTransferResponse = async (apptId: string, accept: boolean) => {
+     const success = await respondToTransfer(apptId, accept, user.id, user.name);
+     if (success) {
+        if (accept) {
+             showNotification('Transfer accepted.', 'success');
+        } else {
+             showNotification('Transfer declined.', 'info');
+        }
+        refreshAppointments();
+     } else {
+        showNotification('Failed to respond to transfer.', 'error');
+     }
+  };
+
   const daysInRescheduleMonth = useMemo(() => {
     return eachDayOfInterval({
       start: startOfMonth(rescheduleCalendarMonth),
@@ -303,6 +321,18 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     return hasOpenSlot ? 'available' : 'fully-booked';
   };
 
+  const isTimePast = (dateStr: string, timeStr: string) => {
+    const now = new Date();
+    const todayStr = format(now, 'yyyy-MM-dd');
+    if (dateStr !== todayStr) return false;
+    
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
+    return hours < currentHours || (hours === currentHours && minutes < currentMinutes);
+  };
+
   const getSlotsForDate = (dateStr: string) => {
     return ownAvailability.find(d => d.date === dateStr)?.slots.filter(s => !s.isBooked) || [];
   };
@@ -314,7 +344,6 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
         case AppointmentStatus.CONFIRMED: return 'bg-blue-500';
         case AppointmentStatus.COMPLETED: return 'bg-emerald-500';
         case AppointmentStatus.CANCELLED: return 'bg-red-500';
-        case AppointmentStatus.DEPARTED: return 'bg-cyan-500';
         default: return 'bg-slate-400';
     }
   };
@@ -373,7 +402,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
               <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">
                  <Filter size={14} /> Filter:
               </span>
-              {['all', AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.DEPARTED, AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED].map(f => (
+              {['all', AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED].map(f => (
                 <button 
                   key={f} 
                   onClick={() => setFilter(f)} 
@@ -383,7 +412,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                       : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
                   }`}
                 >
-                  {f === AppointmentStatus.DEPARTED ? 'INCOMING' : f}
+                  {f}
                 </button>
               ))}
             </div>
@@ -565,11 +594,9 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                           app.status === AppointmentStatus.CONFIRMED ? 'bg-blue-100 text-blue-800 border border-blue-200' : 
                           app.status === AppointmentStatus.COMPLETED ? 'bg-green-100 text-green-800 border border-green-200' : 
                           app.status === AppointmentStatus.CANCELLED ? 'bg-red-100 text-red-800 border border-red-200' : 
-                          app.status === AppointmentStatus.DEPARTED ? 'bg-cyan-100 text-cyan-800 border border-cyan-200 animate-pulse' :
                           'bg-slate-100 text-slate-800'
                         }`}>
-                          {app.status === AppointmentStatus.DEPARTED && <Footprints size={12} />}
-                          {app.status === AppointmentStatus.DEPARTED ? 'INCOMING' : app.status}
+                          {app.status}
                         </span>
                       </div>
                     </div>
@@ -589,7 +616,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                                 <button onClick={() => setRescheduleCalendarMonth(addMonths(rescheduleCalendarMonth, 1))} className="p-1.5 hover:bg-slate-100 rounded-lg"><ChevronRight size={18} /></button>
                               </div>
                               <div className="grid grid-cols-7 gap-1 text-center mb-1">
-                                {['S','M','T','W','T','F','S'].map(d => <div key={d} className="text-[10px] font-bold text-slate-400">{d}</div>)}
+                                {['S','M','T','W','T','F','S'].map((d, i) => <div key={i} className="text-[10px] font-bold text-slate-400">{d}</div>)}
                               </div>
                               <div className="grid grid-cols-7 gap-1">
                                 {Array.from({ length: startOfMonth(rescheduleCalendarMonth).getDay() }).map((_, i) => <div key={`empty-${i}`} />)}
@@ -622,17 +649,25 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                                 <div>
                                    <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Available Slots for {format(parseISO(rescheduleDate), 'MMM d')}</p>
                                    <div className="grid grid-cols-2 gap-2">
-                                      {getSlotsForDate(rescheduleDate).map(slot => (
-                                        <button
-                                          key={slot.time}
-                                          onClick={() => setRescheduleTime(slot.time)}
-                                          className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
-                                            rescheduleTime === slot.time ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.02]' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'
-                                          }`}
-                                        >
-                                          {slot.time}
-                                        </button>
-                                      ))}
+                                      {getSlotsForDate(rescheduleDate).map(slot => {
+                                        const isPast = isTimePast(rescheduleDate, slot.time);
+                                        return (
+                                          <button
+                                            key={slot.time}
+                                            disabled={isPast}
+                                            onClick={() => setRescheduleTime(slot.time)}
+                                            className={`py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
+                                              rescheduleTime === slot.time 
+                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.02]' 
+                                                : isPast
+                                                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                  : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'
+                                            }`}
+                                          >
+                                            {slot.time}
+                                          </button>
+                                        );
+                                      })}
                                       {getSlotsForDate(rescheduleDate).length === 0 && (
                                         <div className="col-span-2 p-4 bg-red-50 text-red-600 text-center rounded-lg text-xs font-medium">No free slots available.</div>
                                       )}
@@ -701,15 +736,21 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                   
                   <div className="flex flex-row md:flex-col gap-2 md:w-40 md:border-l md:border-slate-100 md:pl-6 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
                     {app.transferRequestToId && String(app.transferRequestToId).toLowerCase() === String(user.id).toLowerCase() ? (
-                      <>
-                        <button onClick={() => respondToTransfer(app.id, true, user.id, user.name)} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 shadow-sm transition-colors"><UserCheck size={16} /> Accept</button>
-                        <button onClick={() => respondToTransfer(app.id, false, user.id, user.name)} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-purple-200 text-purple-700 text-xs font-bold rounded-lg hover:bg-purple-50 transition-colors"><XCircle size={16} /> Decline</button>
-                      </>
+                      app.transferCounselorAccepted ? (
+                         <div className="w-full px-3 py-2 bg-purple-50 border border-purple-200 text-purple-700 text-xs font-bold rounded-lg text-center flex items-center justify-center gap-2">
+                            <Loader2 size={14} className="animate-spin" /> Waiting for Student
+                         </div>
+                      ) : (
+                        <>
+                          <button onClick={() => handleTransferResponse(app.id, true)} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 shadow-sm transition-colors"><UserCheck size={16} /> Accept</button>
+                          <button onClick={() => handleTransferResponse(app.id, false)} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-purple-200 text-purple-700 text-xs font-bold rounded-lg hover:bg-purple-50 transition-colors"><XCircle size={16} /> Decline</button>
+                        </>
+                      )
                     ) : !rescheduleId && (
                       <>
-                        {(app.status === AppointmentStatus.PENDING || app.status === AppointmentStatus.DEPARTED) && (
+                        {(app.status === AppointmentStatus.PENDING) && (
                            <>
-                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CONFIRMED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"><CheckCircle size={16} /> {app.status === AppointmentStatus.DEPARTED ? 'Arrived' : 'Confirm'}</button>
+                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CONFIRMED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"><CheckCircle size={16} /> Confirm</button>
                              {app.status === AppointmentStatus.PENDING && <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CANCELLED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"><XCircle size={16} /> Cancel</button>}
                            </>
                         )}

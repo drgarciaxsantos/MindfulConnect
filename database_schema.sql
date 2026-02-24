@@ -64,8 +64,7 @@ INSERT INTO public.appointment_statuses (status) VALUES
 ('CONFIRMED'),
 ('CANCELLED'),
 ('COMPLETED'),
-('VERIFYING'),
-('DEPARTED')
+('VERIFYING')
 ON CONFLICT (status) DO NOTHING;
 
 -- Data Migration: Convert old statuses to new ones
@@ -403,6 +402,7 @@ DECLARE
   v_student_id uuid;
   v_student_name text;
   v_appt_id uuid;
+  v_current_status text;
 BEGIN
   -- 1. Get Student
   SELECT id, name INTO v_student_id, v_student_name FROM students WHERE nfc_uid = p_nfc_uid;
@@ -410,27 +410,65 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'message', 'Card not registered');
   END IF;
 
-  -- 2. Find Confirmed Appointment for TODAY (Ignored Time Constraint)
-  -- The UI Modal will handle the "Too Early" warning if needed.
-  -- This ensures the modal *always* pops up for a confirmed appointment today.
-  SELECT id INTO v_appt_id FROM appointments 
+  -- 2. Find Appointment for TODAY
+  -- Check for existing VERIFYING first to be idempotent
+  SELECT id, status INTO v_appt_id, v_current_status FROM appointments 
   WHERE student_id = v_student_id 
-  AND status = 'CONFIRMED'
-  AND date = to_char(now() AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD');
+  AND date = to_char(now() AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD')
+  AND status IN ('CONFIRMED', 'VERIFYING')
+  ORDER BY status DESC -- Prioritize VERIFYING if duplicates exist? No, just pick one.
+  LIMIT 1;
 
   IF v_appt_id IS NULL THEN
      RETURN jsonb_build_object('success', false, 'message', 'No confirmed appointment today');
   END IF;
 
-  -- 3. Update Status to VERIFYING (This triggers the Counselor Modal via Layout.tsx)
-  UPDATE appointments 
-  SET status = 'VERIFYING',
-      verified_by_teacher_name = 'Gate Scanner'
-  WHERE id = v_appt_id;
+  -- 3. Update Status to VERIFYING (Triggers UI Modal) if not already
+  IF v_current_status = 'CONFIRMED' THEN
+      UPDATE appointments 
+      SET status = 'VERIFYING',
+          verified_by_teacher_name = 'Gate Scanner'
+      WHERE id = v_appt_id;
+  END IF;
 
   -- 4. Insert Log (Optional)
   INSERT INTO verification_logs (student_name) VALUES (v_student_name);
 
-  RETURN jsonb_build_object('success', true, 'student_name', v_student_name);
+  RETURN jsonb_build_object('success', true, 'student_name', v_student_name, 'appointment_id', v_appt_id);
+END;
+$$ LANGUAGE plpgsql;
+
+-- 18. CHECK STATUS RPC FOR ESP32 POLLING
+CREATE OR REPLACE FUNCTION check_verification_status(p_nfc_uid text)
+RETURNS jsonb AS $$
+DECLARE
+  v_student_id uuid;
+  v_appt_id uuid;
+  v_status text;
+  v_student_name text;
+BEGIN
+  -- 1. Get Student
+  SELECT id, name INTO v_student_id, v_student_name FROM students WHERE nfc_uid = p_nfc_uid;
+  IF v_student_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Card not registered');
+  END IF;
+
+  -- 2. Find Appointment for TODAY
+  SELECT id, status INTO v_appt_id, v_status FROM appointments 
+  WHERE student_id = v_student_id 
+  AND date = to_char(now() AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD')
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF v_appt_id IS NULL THEN
+     RETURN jsonb_build_object('success', false, 'message', 'No appointment found for today');
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true, 
+    'status', v_status,
+    'student_name', v_student_name,
+    'appointment_id', v_appt_id
+  );
 END;
 $$ LANGUAGE plpgsql;

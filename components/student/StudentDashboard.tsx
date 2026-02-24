@@ -220,6 +220,18 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
     return hasOpenSlot ? 'available' : 'fully-booked';
   };
 
+  const isTimePast = (dateStr: string, timeStr: string) => {
+    const now = new Date();
+    const todayStr = format(now, 'yyyy-MM-dd');
+    if (dateStr !== todayStr) return false;
+    
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
+    return hours < currentHours || (hours === currentHours && minutes < currentMinutes);
+  };
+
   const getSlotsForDate = (dateStr: string) => {
     return availableDates.find(d => d.date === dateStr)?.slots.filter(s => !s.isBooked) || [];
   };
@@ -276,6 +288,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
                         <div className="bg-purple-600 text-white p-3 flex items-center gap-2">
                           <ArrowRightLeft size={16} />
                           <span className="text-xs font-bold uppercase tracking-wider">Transfer Approval Needed</span>
+                        </div>
+                     )}
+                     {apt.transferRequestToId && apt.transferStudentAccepted && (
+                        <div className="bg-purple-100 text-purple-800 p-3 flex items-center gap-2 border-b border-purple-200">
+                          <ArrowRightLeft size={16} />
+                          <span className="text-xs font-bold uppercase tracking-wider">Transfer Approved - Waiting for Counselor</span>
                         </div>
                      )}
                      {isRescheduling && !isTransferring && (
@@ -456,7 +474,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
                 <button type="button" onClick={nextMonth} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600"><ChevronRight size={18} /></button>
               </div>
               <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center mb-6">
-                {['S','M','T','W','T','F','S'].map(d => <div key={d} className="text-[10px] font-bold text-slate-400">{d}</div>)}
+                {['S','M','T','W','T','F','S'].map((d, i) => <div key={i} className="text-[10px] font-bold text-slate-400">{d}</div>)}
                 {Array.from({ length: startOfMonth(currentMonth).getDay() }).map((_, i) => <div key={`empty-${i}`} />)}
                 {daysInMonth.map(date => {
                   const dateStr = format(date, 'yyyy-MM-dd');
@@ -472,9 +490,26 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
                 <div className="animate-in slide-in-from-top-2 pt-4 border-t border-slate-100">
                   <h3 className="font-semibold text-slate-800 mb-3 text-xs uppercase tracking-wide">Available Slots</h3>
                   <div className="grid grid-cols-3 gap-2">
-                    {getSlotsForDate(selectedDate).map(slot => (
-                      <button key={slot.time} type="button" onClick={() => setSelectedTime(slot.time)} className={`py-2 px-2 rounded-lg text-sm font-medium border transition-all ${selectedTime === slot.time ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.02]' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'}`}>{slot.time}</button>
-                    ))}
+                    {getSlotsForDate(selectedDate).map(slot => {
+                      const isPast = isTimePast(selectedDate, slot.time);
+                      return (
+                        <button 
+                          key={slot.time} 
+                          type="button" 
+                          disabled={isPast}
+                          onClick={() => setSelectedTime(slot.time)} 
+                          className={`py-2 px-2 rounded-lg text-sm font-medium border transition-all ${
+                            selectedTime === slot.time 
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.02]' 
+                              : isPast
+                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'
+                          }`}
+                        >
+                          {slot.time}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
