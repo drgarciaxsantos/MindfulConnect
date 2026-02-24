@@ -162,9 +162,31 @@ export const markAllNotificationsRead = async (userId: string) => {
   }
 };
 
+export const checkAndAutoCompleteAppointments = async () => {
+  const now = new Date();
+  const appointments = await getAppointments();
+  
+  for (const appt of appointments) {
+    if (appt.status === AppointmentStatus.CONFIRMED) {
+      const apptDateTime = new Date(`${appt.date}T${appt.time}`);
+      const diffInMs = now.getTime() - apptDateTime.getTime();
+      const diffInHours = diffInMs / (1000 * 60 * 60);
+
+      // Auto-complete if 24 hours have passed
+      if (diffInHours >= 24) {
+        await updateAppointmentStatus(appt.id, AppointmentStatus.COMPLETED);
+        console.log(`Auto-completed appointment ${appt.id} for ${appt.studentName}`);
+      }
+    }
+  }
+};
+
 export const checkAndSendReminders = async (userId: string) => {
   const now = new Date();
   const appointments = await getAppointments();
+  
+  // Also run auto-complete check
+  await checkAndAutoCompleteAppointments();
   
   for (const appt of appointments) {
     if ((appt.studentId === userId || appt.counselorId === userId) && appt.status === 'CONFIRMED') {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, Appointment, AppointmentStatus, SystemNotification } from '../types';
-import { LogOut, LayoutDashboard, Calendar, FileText, CalendarPlus, CalendarCheck, Bell, Check, ArrowRight, ShieldCheck, BrainCircuit } from 'lucide-react';
+import { LogOut, LayoutDashboard, Calendar, FileText, CalendarPlus, CalendarCheck, Bell, Check, ArrowRight, ShieldCheck, BrainCircuit, Menu, X } from 'lucide-react';
 import { checkAndSendReminders, getAppointments } from '../services/storageService';
 import { useNotification } from './Notifications';
 import VerificationModal from './counselor/VerificationModal';
@@ -112,6 +112,7 @@ const NotificationBell: React.FC<{
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, onTabChange }) => {
   const { notifications, unreadCount, markAsRead, refreshNotifications } = useNotification();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Realtime Gate Request State
   const [gateRequest, setGateRequest] = useState<Appointment | null>(null);
@@ -255,86 +256,22 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
 
   // Counselor Layout
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans">
-      {/* Sidebar for Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0 z-30">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-2.5">
-           <div className="bg-indigo-600 p-1.5 rounded-lg text-white shadow-sm">
-             <BrainCircuit size={24} />
-           </div>
-          <span className="font-bold text-slate-800 tracking-tight text-xl">MindfulConnect</span>
-        </div>
-        
-        <nav className="flex-1 p-4 space-y-2">
-          <button
-            onClick={() => onTabChange?.('appointments')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'appointments' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <LayoutDashboard size={20} /> Dashboard
-          </button>
-          <button
-            onClick={() => onTabChange?.('availability')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'availability' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Calendar size={20} /> Availability
-          </button>
-          <button
-            onClick={() => onTabChange?.('reports')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'reports' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <FileText size={20} /> Reports
-          </button>
-          {/* New Gate Requests Tab for Sidebar */}
-          <button
-             onClick={() => onTabChange?.('verification')}
-             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-               activeTab === 'verification' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-             }`}
-           >
-             <ShieldCheck size={20} /> Gate Requests
-          </button>
-        </nav>
-
-        <div className="p-4 border-t border-slate-100">
-           <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-slate-50 rounded-xl relative">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
-                {user.name.charAt(0)}
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {/* Header (Hamburger Menu) */}
+      <header className="bg-white border-b border-slate-200 px-5 py-3 sticky top-0 z-30 flex justify-between items-center shadow-sm">
+         <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Menu size={24} />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="bg-indigo-600 p-1.5 rounded-lg text-white shadow-sm">
+                 <BrainCircuit size={20} />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-800 truncate">{user.name.split(' ')[0]}</p>
-                <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
-              </div>
-              <NotificationBell 
-                notifications={notifications}
-                unreadCount={unreadCount}
-                refreshNotifications={refreshNotifications}
-                markAsRead={markAsRead}
-                onTabChange={onTabChange}
-                positionClasses="bottom-full left-0 mb-2 w-80 shadow-2xl origin-bottom-left" 
-              />
-           </div>
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
-          >
-            <LogOut size={16} /> Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile Header */}
-      <header className="md:hidden bg-white border-b border-slate-200 px-5 py-3 sticky top-0 z-30 flex justify-between items-center shadow-sm">
-         <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg text-white shadow-sm">
-               <BrainCircuit size={20} />
+              <span className="font-bold text-slate-800 text-lg">MindfulConnect</span>
             </div>
-            <span className="font-bold text-slate-800 text-lg">MindfulConnect</span>
          </div>
          <div className="flex items-center gap-2">
            <NotificationBell 
@@ -345,54 +282,85 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
              onTabChange={onTabChange}
              positionClasses="right-0 mt-3 origin-top-right shadow-2xl" 
            />
-           <button
-            onClick={onLogout}
-            className="p-2 text-slate-400 hover:text-red-600 hover:bg-slate-50 rounded-full"
-          >
-            <LogOut size={20} />
-          </button>
          </div>
       </header>
       
-      {/* Mobile Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-30 flex justify-around items-center pb-safe safe-area-bottom px-2 shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
-        <button
-          onClick={() => onTabChange?.('appointments')}
-          className={`flex flex-col items-center gap-1 p-2 w-16 ${
-            activeTab === 'appointments' ? 'text-indigo-600' : 'text-slate-400'
-          }`}
-        >
-          <LayoutDashboard size={20} />
-          <span className="text-[9px] font-bold">Home</span>
-        </button>
-        <button
-          onClick={() => onTabChange?.('availability')}
-          className={`flex flex-col items-center gap-1 p-2 w-16 ${
-            activeTab === 'availability' ? 'text-indigo-600' : 'text-slate-400'
-          }`}
-        >
-          <Calendar size={20} />
-          <span className="text-[9px] font-bold">Time</span>
-        </button>
-        <button
-          onClick={() => onTabChange?.('verification')}
-          className={`flex flex-col items-center gap-1 p-2 w-16 ${
-            activeTab === 'verification' ? 'text-indigo-600' : 'text-slate-400'
-          }`}
-        >
-          <ShieldCheck size={20} />
-          <span className="text-[9px] font-bold">Gate</span>
-        </button>
-        <button
-          onClick={() => onTabChange?.('reports')}
-          className={`flex flex-col items-center gap-1 p-2 w-16 ${
-            activeTab === 'reports' ? 'text-indigo-600' : 'text-slate-400'
-          }`}
-        >
-          <FileText size={20} />
-          <span className="text-[9px] font-bold">Reports</span>
-        </button>
-      </nav>
+      {/* Menu Drawer */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex">
+           {/* Backdrop */}
+           <div 
+             className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" 
+             onClick={() => setIsMobileMenuOpen(false)} 
+           />
+           
+           {/* Drawer Content */}
+           <div className="relative w-3/4 max-w-xs bg-white shadow-2xl flex flex-col h-full animate-in slide-in-from-left duration-300">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                 <div className="flex items-center gap-2">
+                    <div className="bg-indigo-600 p-1.5 rounded-lg text-white shadow-sm">
+                       <BrainCircuit size={20} />
+                    </div>
+                    <span className="font-bold text-slate-800 text-lg">Menu</span>
+                 </div>
+                 <button 
+                   onClick={() => setIsMobileMenuOpen(false)} 
+                   className="p-2 hover:bg-white rounded-full text-slate-500 transition-colors shadow-sm border border-transparent hover:border-slate-200"
+                 >
+                   <X size={20} />
+                 </button>
+              </div>
+              
+              <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                 <button
+                   onClick={() => { onTabChange?.('appointments'); setIsMobileMenuOpen(false); }}
+                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                     activeTab === 'appointments' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                   }`}
+                 >
+                   <LayoutDashboard size={20} /> Dashboard
+                 </button>
+                 <button
+                   onClick={() => { onTabChange?.('availability'); setIsMobileMenuOpen(false); }}
+                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                     activeTab === 'availability' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                   }`}
+                 >
+                   <Calendar size={20} /> Availability
+                 </button>
+                 <button
+                   onClick={() => { onTabChange?.('reports'); setIsMobileMenuOpen(false); }}
+                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                     activeTab === 'reports' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                   }`}
+                 >
+                   <FileText size={20} /> Reports
+                 </button>
+                 <button
+                    onClick={() => { onTabChange?.('verification'); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                      activeTab === 'verification' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <ShieldCheck size={20} /> Gate Requests
+                 </button>
+              </nav>
+
+              <div className="p-4 border-t border-slate-100 bg-slate-50">
+                 <div className="mb-4 px-2">
+                    <p className="font-bold text-slate-800 text-sm truncate">{user.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                 </div>
+                 <button
+                   onClick={onLogout}
+                   className="w-full flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all text-sm font-bold shadow-sm"
+                 >
+                   <LogOut size={18} /> Sign Out
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto pb-24 md:pb-8 max-w-7xl mx-auto w-full">

@@ -149,7 +149,22 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     setAppointments(mine);
   };
 
+  const canMarkComplete = (dateStr: string, timeStr: string) => {
+    const now = new Date();
+    const apptDate = new Date(`${dateStr}T${timeStr}`);
+    // Add 1 hour to appointment time
+    const oneHourAfter = new Date(apptDate.getTime() + 60 * 60 * 1000);
+    return now >= oneHourAfter;
+  };
+
   const handleStatusChange = async (id: string, status: AppointmentStatus) => {
+    if (status === AppointmentStatus.COMPLETED) {
+      const appt = appointments.find(a => a.id === id);
+      if (appt && !canMarkComplete(appt.date, appt.time)) {
+        showNotification('Appointments can only be completed 1 hour after the scheduled time.', 'error');
+        return;
+      }
+    }
     await updateAppointmentStatus(id, status);
     showNotification(`Appointment marked as ${status.toLowerCase()}`, 'success');
     refreshAppointments();
@@ -754,9 +769,20 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                              {app.status === AppointmentStatus.PENDING && <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CANCELLED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"><XCircle size={16} /> Cancel</button>}
                            </>
                         )}
-                        {app.status === AppointmentStatus.CONFIRMED && (
+                         {app.status === AppointmentStatus.CONFIRMED && (
                            <>
-                             <button onClick={() => handleStatusChange(app.id, AppointmentStatus.COMPLETED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 shadow-sm transition-colors"><CheckCircle size={16} /> Complete</button>
+                             <button 
+                               onClick={() => handleStatusChange(app.id, AppointmentStatus.COMPLETED)} 
+                               className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 text-white text-xs font-bold rounded-lg shadow-sm transition-colors ${
+                                 canMarkComplete(app.date, app.time) 
+                                   ? 'bg-emerald-600 hover:bg-emerald-700' 
+                                   : 'bg-slate-300 cursor-not-allowed'
+                               }`}
+                               disabled={!canMarkComplete(app.date, app.time)}
+                               title={!canMarkComplete(app.date, app.time) ? "Available 1 hour after appointment time" : "Mark as Complete"}
+                             >
+                               <CheckCircle size={16} /> Complete
+                             </button>
                            </>
                         )}
                         

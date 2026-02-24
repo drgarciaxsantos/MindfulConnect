@@ -239,7 +239,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
   const WelcomeHeader = () => (
      <div className="px-6 pt-6 pb-2">
       <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-        Hello, {user.name.split(' ')[0]} <span className="text-2xl">👋</span>
+        Hello, {user.name} <span className="text-2xl">👋</span>
       </h1>
       <p className="text-slate-500 text-sm mt-1">How can we support you today?</p>
     </div>
