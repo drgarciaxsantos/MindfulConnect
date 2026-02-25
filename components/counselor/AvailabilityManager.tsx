@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, DayAvailability } from '../../types';
 import { getCounselorAvailability, saveAvailability, subscribeToAvailability } from '../../services/storageService';
-import { Plus, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
-import { format, endOfMonth, eachDayOfInterval, addMonths, getDay } from 'date-fns';
+import { Plus, Trash2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, AlertCircle, ArrowUp, ArrowDown } from 'lucide-react';
+import { format, endOfMonth, eachDayOfInterval, addMonths, getDay, isSameMonth } from 'date-fns';
 
 // Polyfills for missing date-fns exports
 const startOfToday = () => {
@@ -32,6 +32,8 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user }) => {
   
   // Calendar State
   const [currentMonth, setCurrentMonth] = useState(startOfToday());
+  const [scheduleViewMonth, setScheduleViewMonth] = useState(startOfToday());
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     loadAvailability();
@@ -100,6 +102,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user }) => {
   // Calendar Helpers
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(addMonths(currentMonth, -1));
+
+  const nextScheduleMonth = () => setScheduleViewMonth(addMonths(scheduleViewMonth, 1));
+  const prevScheduleMonth = () => setScheduleViewMonth(addMonths(scheduleViewMonth, -1));
 
   const daysInMonth = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -250,13 +255,40 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user }) => {
         {/* Current Availability List */}
         <div className="lg:col-span-2">
            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-             <div className="p-4 bg-slate-50 border-b border-slate-200">
+             <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                <h3 className="font-semibold text-slate-800">Your Schedule</h3>
+               <div className="flex items-center gap-3">
+                 <button
+                   onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                   className="p-1.5 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200 text-slate-600 flex items-center gap-1 text-xs font-medium"
+                   title={sortOrder === 'asc' ? "Sort Descending" : "Sort Ascending"}
+                 >
+                   {sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                   {sortOrder === 'asc' ? 'Oldest' : 'Newest'}
+                 </button>
+                 <div className="h-4 w-px bg-slate-200 mx-1"></div>
+                 <div className="flex items-center gap-2">
+                   <button onClick={prevScheduleMonth} className="p-1 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200">
+                     <ChevronLeft size={16} className="text-slate-600" />
+                   </button>
+                   <span className="text-sm font-bold text-slate-700 w-32 text-center">
+                     {format(scheduleViewMonth, 'MMMM yyyy')}
+                   </span>
+                   <button onClick={nextScheduleMonth} className="p-1 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200">
+                     <ChevronRight size={16} className="text-slate-600" />
+                   </button>
+                 </div>
+               </div>
              </div>
              
              <div className="divide-y divide-slate-100">
                {availability
-                 .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                 .filter(d => isSameMonth(new Date(d.date), scheduleViewMonth))
+                 .sort((a, b) => {
+                   const dateA = new Date(a.date).getTime();
+                   const dateB = new Date(b.date).getTime();
+                   return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+                 })
                  .filter(d => d.slots.length > 0)
                  .map((day) => (
                  <div key={day.date} className="p-6">
@@ -304,9 +336,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user }) => {
                  </div>
                ))}
                
-               {availability.filter(d => d.slots.length > 0).length === 0 && (
+               {availability.filter(d => isSameMonth(new Date(d.date), scheduleViewMonth) && d.slots.length > 0).length === 0 && (
                  <div className="p-12 text-center text-slate-500">
-                   <p>No availability set. Select a date on the calendar to add time slots.</p>
+                   <p>No availability set for {format(scheduleViewMonth, 'MMMM yyyy')}.</p>
                  </div>
                )}
              </div>

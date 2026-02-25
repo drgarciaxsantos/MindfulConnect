@@ -196,7 +196,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-10 px-4 py-3 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-medium text-slate-700"
-                      placeholder="counselor@school.edu"
+                      placeholder="Enter your email"
                     />
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   </div>

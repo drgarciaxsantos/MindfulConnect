@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Appointment, AppointmentStatus } from '../../types';
-import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck, X } from 'lucide-react';
 import { updateAppointmentStatus } from '../../services/storageService';
 
 interface VerificationModalProps {
@@ -53,6 +53,13 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 relative">
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors backdrop-blur-sm"
+          title="Close"
+        >
+          <X size={20} />
+        </button>
         <div className="bg-indigo-600 p-8 text-center text-white relative">
            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-pulse" />
           <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md shadow-inner ring-4 ring-white/10">
