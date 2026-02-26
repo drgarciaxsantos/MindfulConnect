@@ -73,26 +73,7 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
           </div>
         )}
 
-        {(isVerifying || teacherName) && !isTooEarly && (
-          <div className="bg-amber-50 px-8 py-5 border-b border-amber-100 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left animate-in slide-in-from-top-4 duration-500">
-            <div className="p-3 bg-amber-100 text-amber-700 rounded-full shrink-0 shadow-sm">
-              <UserCheck size={24} />
-            </div>
-            <div>
-              <p className="text-amber-900 font-medium text-lg leading-snug">
-                {teacherName ? (
-                  <>
-                    <span className="font-bold">{teacherName}</span> is requesting verification for <span className="font-bold">{appointment.studentName}</span>
-                  </>
-                ) : (
-                  <>
-                    Requesting entry for <span className="font-bold">{appointment.studentName}</span>
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        )}
+
 
         <div className="p-8 space-y-6">
           <div className="flex items-center gap-5 p-5 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
