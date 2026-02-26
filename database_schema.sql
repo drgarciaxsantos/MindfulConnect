@@ -64,8 +64,7 @@ INSERT INTO public.appointment_statuses (status) VALUES
 ('CONFIRMED'),
 ('CANCELLED'),
 ('COMPLETED'),
-('VERIFYING'),
-('ARRIVED')
+('VERIFYING')
 ON CONFLICT (status) DO NOTHING;
 
 -- Data Migration: Convert old statuses to new ones
@@ -416,7 +415,7 @@ BEGIN
   SELECT id, status INTO v_appt_id, v_current_status FROM appointments 
   WHERE student_id = v_student_id 
   AND date = to_char(now() AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD')
-  AND status IN ('CONFIRMED', 'VERIFYING', 'ARRIVED')
+  AND status IN ('CONFIRMED', 'VERIFYING')
   ORDER BY status DESC -- Prioritize VERIFYING if duplicates exist? No, just pick one.
   LIMIT 1;
 
@@ -425,10 +424,6 @@ BEGIN
   END IF;
 
   -- 3. Update Status to VERIFYING (Triggers UI Modal) if not already
-  IF v_current_status = 'ARRIVED' THEN
-      RETURN jsonb_build_object('success', true, 'message', 'Already verified', 'student_name', v_student_name);
-  END IF;
-
   IF v_current_status = 'CONFIRMED' THEN
       UPDATE appointments 
       SET status = 'VERIFYING',

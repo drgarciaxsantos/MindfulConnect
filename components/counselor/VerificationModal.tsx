@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Appointment, AppointmentStatus } from '../../types';
-import { CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck, X } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck, X } from 'lucide-react';
 import { updateAppointmentStatus } from '../../services/storageService';
 
 interface VerificationModalProps {
@@ -55,11 +55,21 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 relative">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors backdrop-blur-sm"
           title="Close"
         >
           <X size={20} />
         </button>
+        <div className="bg-indigo-600 p-8 text-center text-white relative">
+           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-pulse" />
+          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md shadow-inner ring-4 ring-white/10">
+            <ShieldCheck size={40} strokeWidth={2.5} />
+          </div>
+          <h2 className="text-2xl font-black tracking-tight mb-2 uppercase drop-shadow-sm">Verification Request</h2>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs font-bold tracking-widest uppercase border border-white/20">
+            <AlertCircle size={14} /> Action Required
+          </div>
+        </div>
 
         {isTooEarly && (
           <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center gap-3 animate-in shake duration-500">
@@ -73,7 +83,26 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
           </div>
         )}
 
-
+        {(isVerifying || teacherName) && !isTooEarly && (
+          <div className="bg-amber-50 px-8 py-5 border-b border-amber-100 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left animate-in slide-in-from-top-4 duration-500">
+            <div className="p-3 bg-amber-100 text-amber-700 rounded-full shrink-0 shadow-sm">
+              <UserCheck size={24} />
+            </div>
+            <div>
+              <p className="text-amber-900 font-medium text-lg leading-snug">
+                {teacherName ? (
+                  <>
+                    <span className="font-bold">{teacherName}</span> is requesting verification for <span className="font-bold">{appointment.studentName}</span>
+                  </>
+                ) : (
+                  <>
+                    Requesting entry for <span className="font-bold">{appointment.studentName}</span>
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="p-8 space-y-6">
           <div className="flex items-center gap-5 p-5 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
@@ -99,6 +128,15 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Reason</p>
                 <div className="text-slate-700 font-bold truncate">{appointment.reason}</div>
              </div>
+             {teacherName && (
+               <div className="col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Verified By Teacher</p>
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <UserCheck size={16} className="text-indigo-500" />
+                    <span className="font-bold">{teacherName}</span>
+                  </div>
+               </div>
+             )}
           </div>
 
           <div className="flex flex-col gap-3 pt-2">
