@@ -14,29 +14,6 @@ const localCounselors: User[] = [
   { id: 'c3', name: 'Ms. Elizabeth T. Cape', role: UserRole.COUNSELOR, email: 'spnashly@gmail.com' }
 ];
 
-export const initMockData = () => {
-  if (localAppointments.length === 0) {
-     const today = new Date().toISOString().split('T')[0];
-     localAppointments.push({
-      id: 'mock-appt-1',
-      studentId: 'student-1',
-      studentIdNumber: '02000385842',
-      studentName: 'Ashly Misha C. Espina',
-      section: 'MAWD-202',
-      parentPhoneNumber: '0917-123-4567',
-      hasConsent: true,
-      counselorId: 'c1',
-      counselorName: 'Ms. Christina Sharah K. Manangguit',
-      date: today,
-      time: '10:00',
-      reason: 'Academic Stress',
-      description: 'NFC Gate Verification Test',
-      status: AppointmentStatus.CONFIRMED,
-      createdAt: new Date().toISOString()
-    });
-  }
-};
-
 const timeToMinutes = (time: string): number => {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
@@ -166,7 +143,7 @@ export const checkAndAutoCompleteAppointments = async () => {
   const appointments = await getAppointments();
   
   for (const appt of appointments) {
-    if (appt.status === AppointmentStatus.CONFIRMED || appt.status === AppointmentStatus.ARRIVED) {
+    if (appt.status === AppointmentStatus.CONFIRMED) {
       const apptDateTime = new Date(`${appt.date}T${appt.time}`);
       const diffInMs = now.getTime() - apptDateTime.getTime();
       const diffInHours = diffInMs / (1000 * 60 * 60);
@@ -311,7 +288,6 @@ export const updateAppointmentStatus = async (id: string, status: AppointmentSta
   if (appt) {
     let msg = '';
     if (status === AppointmentStatus.CONFIRMED) msg = `Your appointment on ${appt.date} has been CONFIRMED by Counselor ${appt.counselorName}.`;
-    if (status === AppointmentStatus.ARRIVED) msg = `Your arrival has been verified. Please proceed to the Guidance Office.`;
     if (status === AppointmentStatus.CANCELLED) msg = `Your appointment on ${appt.date} was CANCELLED.`;
     if (status === AppointmentStatus.COMPLETED) msg = `Your session on ${appt.date} has been marked COMPLETED.`;
     
