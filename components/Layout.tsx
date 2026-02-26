@@ -163,21 +163,25 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
           (payload) => {
             const newRecord = payload.new as any;
             const myId = String(user.id).toLowerCase();
-            const recordCounselorId = String(newRecord.counselor_id).toLowerCase();
+            // DB column is counselor_id. In UPDATE payloads, it might be missing if not changed.
+            const recordCounselorId = newRecord.counselor_id ? String(newRecord.counselor_id).toLowerCase() : null;
 
-            // Only care if it belongs to this counselor
-            if (recordCounselorId === myId) {
-               if (newRecord.status === AppointmentStatus.VERIFYING) {
-                 // Trigger a full fetch to get fresh data
-                 checkPendingGateRequests();
-               } else if (
-                 gateRequest && 
-                 newRecord.id === gateRequest.id && 
-                 newRecord.status !== AppointmentStatus.VERIFYING
-               ) {
-                 // If the current request was handled (confirmed/cancelled), close modal
-                 setGateRequest(null);
+            // 1. Check for new VERIFYING request
+            if (newRecord.status === AppointmentStatus.VERIFYING) {
+               // If we have an ID and it doesn't match, ignore. 
+               // If ID is missing (common in UPDATE payloads), we MUST check to be safe.
+               if (recordCounselorId && recordCounselorId !== myId) {
+                   return;
                }
+               checkPendingGateRequests();
+            } 
+            // 2. Check for closing existing request
+            else if (
+               gateRequest && 
+               newRecord.id === gateRequest.id && 
+               newRecord.status !== AppointmentStatus.VERIFYING
+            ) {
+               setGateRequest(null);
             }
           }
         )

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Appointment, AppointmentStatus } from '../../types';
-import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck, X } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck, X } from 'lucide-react';
 import { updateAppointmentStatus } from '../../services/storageService';
 
 interface VerificationModalProps {
@@ -55,21 +55,11 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 relative">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors backdrop-blur-sm"
+          className="absolute top-4 right-4 z-10 p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors"
           title="Close"
         >
           <X size={20} />
         </button>
-        <div className="bg-indigo-600 p-8 text-center text-white relative">
-           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-pulse" />
-          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md shadow-inner ring-4 ring-white/10">
-            <ShieldCheck size={40} strokeWidth={2.5} />
-          </div>
-          <h2 className="text-2xl font-black tracking-tight mb-2 uppercase drop-shadow-sm">Verification Request</h2>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs font-bold tracking-widest uppercase border border-white/20">
-            <AlertCircle size={14} /> Action Required
-          </div>
-        </div>
 
         {isTooEarly && (
           <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center gap-3 animate-in shake duration-500">
@@ -128,15 +118,6 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Reason</p>
                 <div className="text-slate-700 font-bold truncate">{appointment.reason}</div>
              </div>
-             {teacherName && (
-               <div className="col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Verified By Teacher</p>
-                  <div className="flex items-center gap-2 text-slate-700">
-                    <UserCheck size={16} className="text-indigo-500" />
-                    <span className="font-bold">{teacherName}</span>
-                  </div>
-               </div>
-             )}
           </div>
 
           <div className="flex flex-col gap-3 pt-2">

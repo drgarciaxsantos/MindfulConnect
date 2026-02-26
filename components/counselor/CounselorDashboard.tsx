@@ -200,7 +200,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
   const filteredAndSortedAppointments = useMemo(() => {
     let result = appointments.filter(a => {
       const matchesFilter = viewMode === 'calendar' 
-        ? a.status === AppointmentStatus.CONFIRMED 
+        ? (a.status === AppointmentStatus.CONFIRMED)
         : (filter === 'all' || a.status === filter);
       const studentName = (a.studentName || '').toLowerCase();
       const studentId = (a.studentIdNumber || '').toLowerCase();
@@ -239,7 +239,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     // so we can see dots for all relevant appointments
     const baseList = appointments.filter(a => {
         const matchesFilter = viewMode === 'calendar'
-          ? a.status === AppointmentStatus.CONFIRMED
+          ? (a.status === AppointmentStatus.CONFIRMED)
           : (filter === 'all' || a.status === filter);
         const studentName = (a.studentName || '').toLowerCase();
         const studentId = (a.studentIdNumber || '').toLowerCase();
@@ -769,7 +769,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                              {app.status === AppointmentStatus.PENDING && <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CANCELLED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"><XCircle size={16} /> Cancel</button>}
                            </>
                         )}
-                         {app.status === AppointmentStatus.CONFIRMED && (
+                         {(app.status === AppointmentStatus.CONFIRMED) && (
                            <>
                              <button 
                                onClick={() => handleStatusChange(app.id, AppointmentStatus.COMPLETED)} 

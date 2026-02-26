@@ -10,8 +10,6 @@ export enum AppointmentStatus {
   CONFIRMED = 'CONFIRMED',
   CANCELLED = 'CANCELLED',
   COMPLETED = 'COMPLETED',
-  // New statuses for gate entry control
-  VERIFYING = 'VERIFYING', // Student is at the gate
 }
 
 export interface User {
