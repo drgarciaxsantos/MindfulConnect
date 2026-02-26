@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, UserRole, SystemNotification } from '../types';
+import { User, UserRole, Appointment, AppointmentStatus, SystemNotification } from '../types';
 import { LogOut, LayoutDashboard, Calendar, FileText, CalendarPlus, CalendarCheck, Bell, Check, ArrowRight, ShieldCheck, BrainCircuit, Menu, X } from 'lucide-react';
-import { checkAndSendReminders } from '../services/storageService';
+import { checkAndSendReminders, getAppointments } from '../services/storageService';
 import { useNotification } from './Notifications';
+import VerificationModal from './counselor/VerificationModal';
 import { supabase } from '../services/supabaseClient';
 
 interface LayoutProps {
@@ -113,11 +114,84 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
   const { notifications, unreadCount, markAsRead, refreshNotifications } = useNotification();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
+  // Realtime Gate Request State
+  const [gateRequest, setGateRequest] = useState<Appointment | null>(null);
+
   useEffect(() => {
     if (user) {
       checkAndSendReminders(user.id);
     }
   }, [user?.id]);
+
+  // Global listener for Gate Requests (VERIFYING status)
+  useEffect(() => {
+    if (user && user.role === UserRole.COUNSELOR) {
+      // 1. Initial Check function
+      const checkPendingGateRequests = async () => {
+        try {
+          const all = await getAppointments();
+          // Look for VERIFYING requests assigned to this counselor
+          const pending = all.find(a => 
+            a.status === AppointmentStatus.VERIFYING && 
+            String(a.counselorId).toLowerCase() === String(user.id).toLowerCase()
+          );
+          
+          if (pending) {
+            console.log("Found pending gate request:", pending);
+            setGateRequest(pending);
+          } else {
+            setGateRequest(null);
+          }
+        } catch (err) {
+          console.error("Error checking pending requests:", err);
+        }
+      };
+      
+      // Run initial check
+      checkPendingGateRequests();
+
+      // 2. Realtime Subscription
+      // We listen to ALL appointments changes to be safe, then filter in JS
+      const channel = supabase.channel('global_gate_watch')
+        .on(
+          'postgres_changes', 
+          { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'appointments' 
+          }, 
+          (payload) => {
+            const newRecord = payload.new as any;
+            const myId = String(user.id).toLowerCase();
+            // DB column is counselor_id. In UPDATE payloads, it might be missing if not changed.
+            const recordCounselorId = newRecord.counselor_id ? String(newRecord.counselor_id).toLowerCase() : null;
+
+            // 1. Check for new VERIFYING request
+            if (newRecord.status === AppointmentStatus.VERIFYING) {
+               // If we have an ID and it doesn't match, ignore. 
+               // If ID is missing (common in UPDATE payloads), we MUST check to be safe.
+               if (recordCounselorId && recordCounselorId !== myId) {
+                   return;
+               }
+               checkPendingGateRequests();
+            } 
+            // 2. Check for closing existing request
+            else if (
+               gateRequest && 
+               newRecord.id === gateRequest.id && 
+               newRecord.status !== AppointmentStatus.VERIFYING
+            ) {
+               setGateRequest(null);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user, gateRequest]);
 
   if (!user) return <>{children}</>;
 
@@ -266,14 +340,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
                  >
                    <FileText size={20} /> Reports
                  </button>
-                 <button
-                    onClick={() => { onTabChange?.('verification'); setIsMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                      activeTab === 'verification' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <ShieldCheck size={20} /> Verification
-                 </button>
               </nav>
 
               <div className="p-4 border-t border-slate-100 bg-slate-50">
@@ -294,6 +360,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto pb-24 md:pb-8 max-w-7xl mx-auto w-full">
+        {gateRequest && (
+          <VerificationModal 
+            appointment={gateRequest} 
+            onClose={() => setGateRequest(null)} 
+          />
+        )}
         {children}
       </main>
     </div>
