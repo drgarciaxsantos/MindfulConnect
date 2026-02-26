@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Appointment, AppointmentStatus } from '../../types';
-import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, UserCheck, X } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, Clock, User, AlertCircle, X } from 'lucide-react';
 import { updateAppointmentStatus } from '../../services/storageService';
 
 interface VerificationModalProps {
@@ -47,9 +47,6 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
     }
   };
 
-  const isVerifying = appointment.status === AppointmentStatus.VERIFYING;
-  const teacherName = appointment.verifiedByTeacherName;
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 relative">
@@ -83,8 +80,6 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
           </div>
         )}
 
-
-
         <div className="p-8 space-y-6">
           <div className="flex items-center gap-5 p-5 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
             <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
@@ -109,13 +104,12 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Reason</p>
                 <div className="text-slate-700 font-bold truncate">{appointment.reason}</div>
              </div>
-
           </div>
 
           <div className="flex flex-col gap-3 pt-2">
             <button
               disabled={isTooEarly}
-              onClick={() => handleDecision(AppointmentStatus.ARRIVED)}
+              onClick={() => handleDecision(AppointmentStatus.CONFIRMED)}
               className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               {isTooEarly ? <Clock size={24} /> : <CheckCircle size={24} />}

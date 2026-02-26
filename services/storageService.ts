@@ -31,9 +31,8 @@ export const initMockData = () => {
       time: '10:00',
       reason: 'Academic Stress',
       description: 'NFC Gate Verification Test',
-      status: AppointmentStatus.VERIFYING,
-      createdAt: new Date().toISOString(),
-      verifiedByTeacherName: 'Jem Palaganas'
+      status: AppointmentStatus.CONFIRMED,
+      createdAt: new Date().toISOString()
     });
   }
 };

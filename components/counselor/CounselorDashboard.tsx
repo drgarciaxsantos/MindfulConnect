@@ -200,7 +200,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
   const filteredAndSortedAppointments = useMemo(() => {
     let result = appointments.filter(a => {
       const matchesFilter = viewMode === 'calendar' 
-        ? (a.status === AppointmentStatus.CONFIRMED || a.status === AppointmentStatus.ARRIVED)
+        ? (a.status === AppointmentStatus.CONFIRMED)
         : (filter === 'all' || a.status === filter);
       const studentName = (a.studentName || '').toLowerCase();
       const studentId = (a.studentIdNumber || '').toLowerCase();
@@ -239,7 +239,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     // so we can see dots for all relevant appointments
     const baseList = appointments.filter(a => {
         const matchesFilter = viewMode === 'calendar'
-          ? (a.status === AppointmentStatus.CONFIRMED || a.status === AppointmentStatus.ARRIVED)
+          ? (a.status === AppointmentStatus.CONFIRMED)
           : (filter === 'all' || a.status === filter);
         const studentName = (a.studentName || '').toLowerCase();
         const studentId = (a.studentIdNumber || '').toLowerCase();
@@ -357,7 +357,6 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
     switch (status) {
         case AppointmentStatus.PENDING: return 'bg-amber-400';
         case AppointmentStatus.CONFIRMED: return 'bg-blue-500';
-        case AppointmentStatus.ARRIVED: return 'bg-purple-500';
         case AppointmentStatus.COMPLETED: return 'bg-emerald-500';
         case AppointmentStatus.CANCELLED: return 'bg-red-500';
         default: return 'bg-slate-400';
@@ -418,7 +417,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
               <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">
                  <Filter size={14} /> Filter:
               </span>
-              {['all', AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.ARRIVED, AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED].map(f => (
+              {['all', AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED].map(f => (
                 <button 
                   key={f} 
                   onClick={() => setFilter(f)} 
@@ -608,7 +607,6 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm ${
                           app.status === AppointmentStatus.PENDING ? 'bg-amber-100 text-amber-800 border border-amber-200' : 
                           app.status === AppointmentStatus.CONFIRMED ? 'bg-blue-100 text-blue-800 border border-blue-200' : 
-                          app.status === AppointmentStatus.ARRIVED ? 'bg-purple-100 text-purple-800 border border-purple-200' : 
                           app.status === AppointmentStatus.COMPLETED ? 'bg-green-100 text-green-800 border border-green-200' : 
                           app.status === AppointmentStatus.CANCELLED ? 'bg-red-100 text-red-800 border border-red-200' : 
                           'bg-slate-100 text-slate-800'
@@ -771,7 +769,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                              {app.status === AppointmentStatus.PENDING && <button onClick={() => handleStatusChange(app.id, AppointmentStatus.CANCELLED)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"><XCircle size={16} /> Cancel</button>}
                            </>
                         )}
-                         {(app.status === AppointmentStatus.CONFIRMED || app.status === AppointmentStatus.ARRIVED) && (
+                         {(app.status === AppointmentStatus.CONFIRMED) && (
                            <>
                              <button 
                                onClick={() => handleStatusChange(app.id, AppointmentStatus.COMPLETED)} 
@@ -788,7 +786,7 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                            </>
                         )}
                         
-                        {(app.status === AppointmentStatus.PENDING || app.status === AppointmentStatus.CONFIRMED || app.status === AppointmentStatus.ARRIVED) && !app.transferRequestToId && !app.rescheduleProposedDate && (
+                        {(app.status === AppointmentStatus.PENDING || app.status === AppointmentStatus.CONFIRMED) && !app.transferRequestToId && !app.rescheduleProposedDate && (
                            <>
                              <button onClick={() => { setRescheduleId(app.id); setRescheduleDate(''); setRescheduleTime(''); }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-50 transition-colors"><RefreshCw size={16} /> Reschedule</button>
                              <button onClick={() => openTransferModal(app.id)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 hover:text-purple-600 transition-colors"><ArrowRightLeft size={16} /> Transfer</button>

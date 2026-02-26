@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, Appointment, AppointmentStatus } from '../../types';
 import { getAppointments, updateAppointmentStatus } from '../../services/storageService';
-import { ShieldCheck, CheckCircle, XCircle, Clock, MapPin, User as UserIcon, RefreshCw, AlertTriangle, Eye, UserCheck } from 'lucide-react';
+import { ShieldCheck, CheckCircle, XCircle, Clock, MapPin, User as UserIcon, RefreshCw, CalendarCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNotification } from '../Notifications';
-import VerificationModal from './VerificationModal';
 
 interface VerificationTabProps {
   user: User;
@@ -14,8 +13,7 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const { showNotification } = useNotification();
-  const [activeFilter, setActiveFilter] = useState<'requests' | 'history'>('requests');
-  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'today' | 'history'>('today');
 
   const loadData = async () => {
     setLoading(true);
@@ -46,15 +44,14 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
   const handleDecision = async (appt: Appointment, status: AppointmentStatus) => {
     await updateAppointmentStatus(appt.id, status);
     
-    // Determine message based on status (CONFIRMED = Approved, CANCELLED = Denied)
     let message = 'Status Updated';
     let type: 'success' | 'info' = 'info';
 
-    if (status === AppointmentStatus.CONFIRMED || status === AppointmentStatus.ARRIVED) {
-      message = 'Entry Confirmed';
+    if (status === AppointmentStatus.COMPLETED) {
+      message = 'Appointment Completed';
       type = 'success';
     } else if (status === AppointmentStatus.CANCELLED) {
-      message = 'Entry Cancelled';
+      message = 'Appointment Cancelled';
       type = 'info';
     }
 
@@ -62,33 +59,25 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
     loadData();
   };
 
-  // Filter for VERIFYING (At Gate) requests - High Priority
-  const gateRequests = appointments.filter(a => a.status === AppointmentStatus.VERIFYING);
+  // Today's Confirmed Appointments
+  const todayList = appointments.filter(a => a.status === AppointmentStatus.CONFIRMED);
   
   // History items - includes CANCELLED and COMPLETED. 
-  // Note: CONFIRMED items are active and will show in main dashboard.
   const historyList = appointments.filter(a => 
     a.status === AppointmentStatus.COMPLETED || 
     a.status === AppointmentStatus.CANCELLED
   );
 
-  const displayList = activeFilter === 'requests' ? gateRequests : historyList;
+  const displayList = activeFilter === 'today' ? todayList : historyList;
 
   return (
     <div className="space-y-6">
-      {selectedAppt && (
-        <VerificationModal 
-          appointment={selectedAppt} 
-          onClose={() => setSelectedAppt(null)} 
-        />
-      )}
-
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <ShieldCheck className="text-indigo-600" /> Verification
+            <ShieldCheck className="text-indigo-600" /> Daily Overview
           </h2>
-          <p className="text-slate-500">Monitor and approve students waiting at the gate.</p>
+          <p className="text-slate-500">Manage today's appointments and track completions.</p>
         </div>
         <div className="flex gap-2">
            <button 
@@ -103,16 +92,13 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 rounded-xl border border-indigo-700 shadow-md text-white">
-          <div className="flex items-center gap-2 mb-1 text-indigo-200 text-xs font-bold uppercase tracking-wider">
-            <AlertTriangle size={14} className="animate-pulse" />
-            Waiting at Gate
-          </div>
-          <p className="text-4xl font-black">{gateRequests.length}</p>
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-indigo-600 font-bold text-xs uppercase tracking-wider mb-1">Today's Appointments</p>
+          <p className="text-3xl font-bold text-slate-800">{todayList.length}</p>
         </div>
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-emerald-600 font-bold text-xs uppercase tracking-wider mb-1">Entries Confirmed</p>
-          <p className="text-3xl font-bold text-slate-800">{appointments.filter(a => a.status === AppointmentStatus.CONFIRMED || a.status === AppointmentStatus.ARRIVED).length}</p>
+          <p className="text-emerald-600 font-bold text-xs uppercase tracking-wider mb-1">Completed Today</p>
+          <p className="text-3xl font-bold text-slate-800">{appointments.filter(a => a.status === AppointmentStatus.COMPLETED).length}</p>
         </div>
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-1">Total Scheduled</p>
@@ -122,16 +108,16 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
 
       <div className="flex gap-2 border-b border-slate-200">
         <button
-          onClick={() => setActiveFilter('requests')}
+          onClick={() => setActiveFilter('today')}
           className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
-            activeFilter === 'requests' 
+            activeFilter === 'today' 
               ? 'border-indigo-600 text-indigo-600' 
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
-          Active Requests
-          {gateRequests.length > 0 && (
-             <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{gateRequests.length}</span>
+          Today's Schedule
+          {todayList.length > 0 && (
+             <span className="bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{todayList.length}</span>
           )}
         </button>
         <button
@@ -150,26 +136,26 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
         {displayList.length === 0 ? (
            <div className="py-16 text-center bg-white rounded-xl border border-dashed border-slate-300">
              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
-               <ShieldCheck size={32} />
+               <CalendarCheck size={32} />
              </div>
-             <p className="text-slate-500 font-medium">No {activeFilter === 'requests' ? 'students waiting at the gate' : 'history records'} found.</p>
+             <p className="text-slate-500 font-medium">No {activeFilter === 'today' ? 'appointments scheduled for today' : 'history records'} found.</p>
            </div>
         ) : (
           displayList.map(appt => (
-            <div key={appt.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col md:flex-row transition-all ${appt.status === AppointmentStatus.VERIFYING ? 'border-indigo-200 shadow-md ring-1 ring-indigo-50' : 'border-slate-200'}`}>
+            <div key={appt.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row transition-all">
               <div className={`w-full md:w-2 ${
-                appt.status === AppointmentStatus.VERIFYING ? 'bg-indigo-600 animate-pulse' :
-                appt.status === AppointmentStatus.CONFIRMED ? 'bg-emerald-500' :
+                appt.status === AppointmentStatus.CONFIRMED ? 'bg-blue-500' :
+                appt.status === AppointmentStatus.COMPLETED ? 'bg-emerald-500' :
                 appt.status === AppointmentStatus.CANCELLED ? 'bg-red-500' :
                 'bg-slate-300'
               }`} />
               
               <div className="p-6 flex-1 flex flex-col justify-center relative">
-                {activeFilter === 'requests' && (
+                {activeFilter === 'today' && (
                   <button
                     onClick={() => handleDecision(appt, AppointmentStatus.CANCELLED)}
                     className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
-                    title="Decline Request"
+                    title="Cancel Appointment"
                   >
                     <XCircle size={24} />
                   </button>
@@ -177,13 +163,12 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                 <div className="flex justify-between items-start mb-2 pr-8">
                   <h3 className="text-xl font-bold text-slate-900">{appt.studentName}</h3>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                    appt.status === AppointmentStatus.VERIFYING ? 'bg-indigo-600 text-white' :
-                    appt.status === AppointmentStatus.CONFIRMED ? 'bg-emerald-100 text-emerald-800' :
-                    appt.status === AppointmentStatus.ARRIVED ? 'bg-purple-100 text-purple-800' :
+                    appt.status === AppointmentStatus.CONFIRMED ? 'bg-blue-100 text-blue-800' :
+                    appt.status === AppointmentStatus.COMPLETED ? 'bg-emerald-100 text-emerald-800' :
                     appt.status === AppointmentStatus.CANCELLED ? 'bg-red-100 text-red-800' :
                     'bg-slate-100 text-slate-800'
                   }`}>
-                    {appt.status === AppointmentStatus.VERIFYING ? 'AT GATE' : appt.status}
+                    {appt.status}
                   </span>
                 </div>
                 
@@ -191,53 +176,27 @@ const VerificationTab: React.FC<VerificationTabProps> = ({ user }) => {
                   <span className="flex items-center gap-1.5"><Clock size={16} className="text-indigo-500" /> {appt.time} Today</span>
                   <span className="flex items-center gap-1.5"><MapPin size={16} className="text-indigo-500" /> {appt.section || 'No Section'}</span>
                   {appt.studentIdNumber && <span className="flex items-center gap-1.5"><UserIcon size={16} className="text-indigo-500" /> ID: {appt.studentIdNumber}</span>}
-                  {appt.verifiedByTeacherName && <span className="flex items-center gap-1.5 font-medium text-indigo-600"><UserCheck size={16} /> Verified by: {appt.verifiedByTeacherName}</span>}
                 </div>
-                
-                {(appt.verifiedByTeacherName || appt.status === AppointmentStatus.VERIFYING) && (
-                  <div className="mb-4 flex items-start gap-3 bg-amber-50 text-amber-900 text-sm p-3 rounded-xl border border-amber-200 shadow-sm">
-                     <div className="bg-amber-100 p-1.5 rounded-full shrink-0 text-amber-700">
-                       <UserCheck size={16} />
-                     </div>
-                     <span className="font-medium py-0.5">
-                       {appt.verifiedByTeacherName ? (
-                         <><span className="font-bold">{appt.verifiedByTeacherName}</span> asked for the verification of <span className="font-bold">{appt.studentName}</span></>
-                       ) : (
-                         <>Gate verification requested for <span className="font-bold">{appt.studentName}</span></>
-                       )}
-                     </span>
-                  </div>
-                )}
                 
                 <p className="text-slate-700 font-medium bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm">
                   Reason: {appt.reason}
                 </p>
               </div>
 
-              {activeFilter === 'requests' && (
+              {activeFilter === 'today' && (
                 <div className="p-4 md:p-6 bg-slate-50 flex flex-col gap-2 justify-center md:border-l border-slate-100 md:w-48">
                   <button
-                    onClick={() => setSelectedAppt(appt)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors shadow-sm"
+                    onClick={() => handleDecision(appt, AppointmentStatus.COMPLETED)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm"
                   >
-                    <Eye size={16} /> Review
+                    <CheckCircle size={16} /> Complete
                   </button>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleDecision(appt, AppointmentStatus.ARRIVED)}
-                      className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-200 transition-colors"
-                      title="Quick Confirm"
-                    >
-                      <CheckCircle size={16} /> Confirm
-                    </button>
-                    <button
-                      onClick={() => handleDecision(appt, AppointmentStatus.CANCELLED)}
-                      className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors"
-                      title="Quick Cancel"
-                    >
-                      <XCircle size={16} /> Cancel
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleDecision(appt, AppointmentStatus.CANCELLED)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors"
+                  >
+                    <XCircle size={16} /> Cancel
+                  </button>
                 </div>
               )}
             </div>

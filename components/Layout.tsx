@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, UserRole, Appointment, AppointmentStatus, SystemNotification } from '../types';
+import { User, UserRole, SystemNotification } from '../types';
 import { LogOut, LayoutDashboard, Calendar, FileText, CalendarPlus, CalendarCheck, Bell, Check, ArrowRight, ShieldCheck, BrainCircuit, Menu, X } from 'lucide-react';
-import { checkAndSendReminders, getAppointments } from '../services/storageService';
+import { checkAndSendReminders } from '../services/storageService';
 import { useNotification } from './Notifications';
-import VerificationModal from './counselor/VerificationModal';
 import { supabase } from '../services/supabaseClient';
 
 interface LayoutProps {
@@ -114,80 +113,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
   const { notifications, unreadCount, markAsRead, refreshNotifications } = useNotification();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Realtime Gate Request State
-  const [gateRequest, setGateRequest] = useState<Appointment | null>(null);
-
   useEffect(() => {
     if (user) {
       checkAndSendReminders(user.id);
     }
   }, [user?.id]);
-
-  // Global listener for Gate Requests (VERIFYING status)
-  const ignoredIdsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (user && user.role === UserRole.COUNSELOR) {
-      // 1. Initial Check function
-      const checkPendingGateRequests = async () => {
-        try {
-          const all = await getAppointments();
-          // Look for VERIFYING requests assigned to this counselor
-          const pending = all.find(a => 
-            a.status === AppointmentStatus.VERIFYING && 
-            String(a.counselorId).toLowerCase() === String(user.id).toLowerCase()
-          );
-          
-          if (pending) {
-            // Check if we should ignore this specific appointment ID (user manually closed it)
-            if (ignoredIdsRef.current.has(pending.id)) {
-              return;
-            }
-            console.log("Found pending gate request:", pending);
-            setGateRequest(prev => {
-              // Avoid re-setting if it's the same ID to prevent re-renders
-              if (prev?.id === pending.id) return prev;
-              return pending;
-            });
-          } else {
-            setGateRequest(null);
-          }
-        } catch (err) {
-          console.error("Error checking pending requests:", err);
-        }
-      };
-      
-      // Run initial check
-      checkPendingGateRequests();
-
-      // 2. Realtime Subscription
-      const channel = supabase.channel('global_gate_watch')
-        .on(
-          'postgres_changes', 
-          { 
-            event: 'UPDATE', 
-            schema: 'public', 
-            table: 'appointments' 
-          }, 
-          (payload) => {
-            const newRecord = payload.new as any;
-            const myId = String(user.id).toLowerCase();
-            const recordCounselorId = String(newRecord.counselor_id).toLowerCase();
-
-            // Only care if it belongs to this counselor
-            if (recordCounselorId === myId) {
-               // Refresh state on any relevant update
-               checkPendingGateRequests();
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [user]); // Removed gateRequest to prevent loop
 
   if (!user) return <>{children}</>;
 
@@ -364,17 +294,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
 
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto pb-24 md:pb-8 max-w-7xl mx-auto w-full">
-        {gateRequest && (
-          <VerificationModal 
-            appointment={gateRequest} 
-            onClose={() => {
-              if (gateRequest) {
-                ignoredIdsRef.current.add(gateRequest.id);
-              }
-              setGateRequest(null);
-            }} 
-          />
-        )}
         {children}
       </main>
     </div>
