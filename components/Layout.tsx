@@ -124,6 +124,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
   }, [user?.id]);
 
   // Global listener for Gate Requests (VERIFYING status)
+  const ignoredIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (user && user.role === UserRole.COUNSELOR) {
       // 1. Initial Check function
@@ -137,8 +139,16 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
           );
           
           if (pending) {
+            // Check if we should ignore this specific appointment ID (user manually closed it)
+            if (ignoredIdsRef.current.has(pending.id)) {
+              return;
+            }
             console.log("Found pending gate request:", pending);
-            setGateRequest(pending);
+            setGateRequest(prev => {
+              // Avoid re-setting if it's the same ID to prevent re-renders
+              if (prev?.id === pending.id) return prev;
+              return pending;
+            });
           } else {
             setGateRequest(null);
           }
@@ -151,7 +161,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
       checkPendingGateRequests();
 
       // 2. Realtime Subscription
-      // We listen to ALL appointments changes to be safe, then filter in JS
       const channel = supabase.channel('global_gate_watch')
         .on(
           'postgres_changes', 
@@ -167,17 +176,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
 
             // Only care if it belongs to this counselor
             if (recordCounselorId === myId) {
-               if (newRecord.status === AppointmentStatus.VERIFYING) {
-                 // Trigger a full fetch to get fresh data
-                 checkPendingGateRequests();
-               } else if (
-                 gateRequest && 
-                 newRecord.id === gateRequest.id && 
-                 newRecord.status !== AppointmentStatus.VERIFYING
-               ) {
-                 // If the current request was handled (confirmed/cancelled), close modal
-                 setGateRequest(null);
-               }
+               // Refresh state on any relevant update
+               checkPendingGateRequests();
             }
           }
         )
@@ -187,7 +187,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
         supabase.removeChannel(channel);
       };
     }
-  }, [user, gateRequest]);
+  }, [user]); // Removed gateRequest to prevent loop
 
   if (!user) return <>{children}</>;
 
@@ -336,6 +336,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
                  >
                    <FileText size={20} /> Reports
                  </button>
+                 <button
+                    onClick={() => { onTabChange?.('verification'); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                      activeTab === 'verification' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <ShieldCheck size={20} /> Verification
+                 </button>
               </nav>
 
               <div className="p-4 border-t border-slate-100 bg-slate-50">
@@ -359,7 +367,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, on
         {gateRequest && (
           <VerificationModal 
             appointment={gateRequest} 
-            onClose={() => setGateRequest(null)} 
+            onClose={() => {
+              if (gateRequest) {
+                ignoredIdsRef.current.add(gateRequest.id);
+              }
+              setGateRequest(null);
+            }} 
           />
         )}
         {children}

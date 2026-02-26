@@ -167,7 +167,7 @@ export const checkAndAutoCompleteAppointments = async () => {
   const appointments = await getAppointments();
   
   for (const appt of appointments) {
-    if (appt.status === AppointmentStatus.CONFIRMED) {
+    if (appt.status === AppointmentStatus.CONFIRMED || appt.status === AppointmentStatus.ARRIVED) {
       const apptDateTime = new Date(`${appt.date}T${appt.time}`);
       const diffInMs = now.getTime() - apptDateTime.getTime();
       const diffInHours = diffInMs / (1000 * 60 * 60);
@@ -312,6 +312,7 @@ export const updateAppointmentStatus = async (id: string, status: AppointmentSta
   if (appt) {
     let msg = '';
     if (status === AppointmentStatus.CONFIRMED) msg = `Your appointment on ${appt.date} has been CONFIRMED by Counselor ${appt.counselorName}.`;
+    if (status === AppointmentStatus.ARRIVED) msg = `Your arrival has been verified. Please proceed to the Guidance Office.`;
     if (status === AppointmentStatus.CANCELLED) msg = `Your appointment on ${appt.date} was CANCELLED.`;
     if (status === AppointmentStatus.COMPLETED) msg = `Your session on ${appt.date} has been marked COMPLETED.`;
     
