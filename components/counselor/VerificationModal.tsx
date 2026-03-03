@@ -83,7 +83,26 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
           </div>
         )}
 
-
+        {(isVerifying || teacherName) && !isTooEarly && (
+          <div className="bg-amber-50 px-8 py-5 border-b border-amber-100 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left animate-in slide-in-from-top-4 duration-500">
+            <div className="p-3 bg-amber-100 text-amber-700 rounded-full shrink-0 shadow-sm">
+              <UserCheck size={24} />
+            </div>
+            <div>
+              <p className="text-amber-900 font-medium text-lg leading-snug">
+                {teacherName ? (
+                  <>
+                    <span className="font-bold">{teacherName}</span> is requesting verification for <span className="font-bold">{appointment.studentName}</span>
+                  </>
+                ) : (
+                  <>
+                    Requesting entry for <span className="font-bold">{appointment.studentName}</span>
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="p-8 space-y-6">
           <div className="flex items-center gap-5 p-5 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
@@ -109,7 +128,15 @@ const VerificationModal: React.FC<VerificationModalProps> = ({ appointment, onCl
                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Reason</p>
                 <div className="text-slate-700 font-bold truncate">{appointment.reason}</div>
              </div>
-
+             {teacherName && (
+               <div className="col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Verified By Teacher</p>
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <UserCheck size={16} className="text-indigo-500" />
+                    <span className="font-bold">{teacherName}</span>
+                  </div>
+               </div>
+             )}
           </div>
 
           <div className="flex flex-col gap-3 pt-2">
