@@ -383,7 +383,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab }) 
                        )}
 
                        <div className="flex flex-col gap-2">
-                        {apt.status === AppointmentStatus.PENDING && !isTransferring && !isRescheduling && (
+                        {(apt.status === AppointmentStatus.PENDING || apt.status === AppointmentStatus.CONFIRMED) && !isTransferring && !isRescheduling && (
                           <button 
                             onClick={() => handleCancelClick(apt)}
                             className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 border border-red-100 rounded-xl text-red-600 font-semibold shadow-sm hover:bg-red-100 active:scale-[0.98] transition-all text-sm"

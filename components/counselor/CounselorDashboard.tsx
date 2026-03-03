@@ -783,6 +783,12 @@ const CounselorDashboard: React.FC<CounselorDashboardProps> = ({ user, activeTab
                              >
                                <CheckCircle size={16} /> Complete
                              </button>
+                             <button 
+                               onClick={() => handleStatusChange(app.id, AppointmentStatus.CANCELLED)} 
+                               className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors"
+                             >
+                               <XCircle size={16} /> Cancel
+                             </button>
                            </>
                         )}
                         
