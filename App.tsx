@@ -7,7 +7,6 @@ import StudentDashboard from './components/student/StudentDashboard';
 import CounselorDashboard from './components/counselor/CounselorDashboard';
 import CounselorReports from './components/counselor/CounselorReports';
 import NotificationCenter from './components/NotificationCenter';
-import { initMockData } from './services/storageService';
 import { NotificationProvider, useNotification } from './components/Notifications';
 import { supabase } from './services/supabaseClient';
 
@@ -76,7 +75,6 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
-    initMockData();
     const storedUser = localStorage.getItem('mc_user');
     if (storedUser) {
       const u = JSON.parse(storedUser);
