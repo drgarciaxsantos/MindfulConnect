@@ -6,6 +6,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
@@ -14,6 +15,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
+
+// Supabase client for backend
+const supabaseUrl = process.env.SUPABASE_URL || 'https://ozolagmwrjesamwfmmoj.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96b2xhZ213cmplc2Ftd2ZtbW9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4NDExNDMsImV4cCI6MjA4MDQxNzE0M30.tg0NlDo8JCydXXphgNmYnnV7-4I1b6fPYcDhvIUA_ao';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -42,39 +48,70 @@ if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
   );
 }
 
-// In-memory storage for subscriptions (In a real app, use a database)
-const subscriptions: any[] = [];
-
-app.post("/api/notifications/subscribe", (req, res) => {
-  const subscription = req.body;
+// Routes for push notifications
+app.post("/api/notifications/subscribe", async (req, res) => {
+  const { subscription, userId } = req.body;
   
-  // Check if subscription already exists
-  const exists = subscriptions.find(s => s.endpoint === subscription.endpoint);
-  if (!exists) {
-    subscriptions.push(subscription);
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required." });
   }
-  
-  res.status(201).json({ message: "Subscription added successfully." });
+
+  try {
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .upsert({ 
+        user_id: userId, 
+        subscription: subscription 
+      }, { onConflict: 'user_id, subscription' });
+
+    if (error) throw error;
+    
+    res.status(201).json({ message: "Subscription added successfully." });
+  } catch (error: any) {
+    console.error("Error saving subscription:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post("/api/notifications/send", (req, res) => {
-  const { title, body, url } = req.body;
+app.post("/api/notifications/send", async (req, res) => {
+  const { title, body, url, userId } = req.body;
   const payload = JSON.stringify({ title, body, url });
 
-  const promises = subscriptions.map(subscription => 
-    webPush.sendNotification(subscription, payload).catch(err => {
-      console.error("Error sending notification:", err);
-      // Remove failed subscription if it's no longer valid
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        const index = subscriptions.indexOf(subscription);
-        if (index > -1) subscriptions.splice(index, 1);
-      }
-    })
-  );
+  try {
+    let query = supabase.from('push_subscriptions').select('subscription');
+    
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
 
-  Promise.all(promises)
-    .then(() => res.status(200).json({ message: "Notifications sent." }))
-    .catch(err => res.status(500).json({ error: err.message }));
+    const { data: dbSubscriptions, error } = await query;
+
+    if (error) throw error;
+
+    if (!dbSubscriptions || dbSubscriptions.length === 0) {
+      return res.status(200).json({ message: "No subscriptions found." });
+    }
+
+    const promises = dbSubscriptions.map(sub => {
+      const subscription = sub.subscription as any;
+      return webPush.sendNotification(subscription, payload).catch(async err => {
+        console.error("Error sending notification:", err);
+        // Remove failed subscription if it's no longer valid
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await supabase
+            .from('push_subscriptions')
+            .delete()
+            .match({ subscription: subscription });
+        }
+      });
+    });
+
+    await Promise.all(promises);
+    res.status(200).json({ message: "Notifications sent." });
+  } catch (error: any) {
+    console.error("Error sending notifications:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Get public key for frontend

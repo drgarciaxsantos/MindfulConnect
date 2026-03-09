@@ -395,7 +395,16 @@ CREATE TABLE IF NOT EXISTS public.verification_logs (
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 17. MAIN RPC FOR ESP32: Update Appointment AND Trigger Realtime Modal
+-- 17. Create Push Subscriptions Table
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  subscription jsonb NOT NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(user_id, subscription)
+);
+
+-- 18. MAIN RPC FOR ESP32: Update Appointment AND Trigger Realtime Modal
 CREATE OR REPLACE FUNCTION process_nfc_scan(p_nfc_uid text)
 RETURNS jsonb AS $$
 DECLARE

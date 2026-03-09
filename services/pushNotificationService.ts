@@ -13,7 +13,7 @@ export const urlBase64ToUint8Array = (base64String: string) => {
   return outputArray;
 };
 
-export const registerPushNotifications = async () => {
+export const registerPushNotifications = async (userId: string) => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('Push notifications are not supported in this browser.');
     return;
@@ -33,7 +33,10 @@ export const registerPushNotifications = async () => {
 
     await fetch('/api/notifications/subscribe', {
       method: 'POST',
-      body: JSON.stringify(subscription),
+      body: JSON.stringify({
+        subscription,
+        userId
+      }),
       headers: {
         'Content-Type': 'application/json'
       }
@@ -45,11 +48,11 @@ export const registerPushNotifications = async () => {
   }
 };
 
-export const sendPushNotification = async (title: string, body: string, url: string = '/') => {
+export const sendPushNotification = async (title: string, body: string, userId?: string, url: string = '/') => {
   try {
     await fetch('/api/notifications/send', {
       method: 'POST',
-      body: JSON.stringify({ title, body, url }),
+      body: JSON.stringify({ title, body, url, userId }),
       headers: {
         'Content-Type': 'application/json'
       }

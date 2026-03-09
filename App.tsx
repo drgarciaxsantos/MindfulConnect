@@ -22,8 +22,8 @@ const AppContent: React.FC<{
 
   useEffect(() => {
     setNotificationUser(user);
-    if (user) {
-      registerPushNotifications();
+    if (user && user.id) {
+      registerPushNotifications(user.id);
     }
   }, [user, setNotificationUser]);
 
