@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Bell, Check, Trash2, CheckCircle2, Clock } from 'lucide-react';
+import { Bell, Check, Trash2, CheckCircle2, Clock, Send } from 'lucide-react';
 import { useNotification } from './Notifications';
+import { sendPushNotification } from '../services/pushNotificationService';
 
 interface NotificationCenterProps {
   user: User;
@@ -11,6 +12,10 @@ interface NotificationCenterProps {
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ user }) => {
   const { notifications, markAsRead, markAllAsRead } = useNotification();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+
+  const handleTestPush = async () => {
+    await sendPushNotification('Test Notification', 'This is a test push notification from MindfulConnect.');
+  };
 
   const handleMarkRead = async (id: string) => {
     await markAsRead(id);
@@ -62,6 +67,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ user }) => {
            >
              <CheckCircle2 size={16} />
              Mark all as read
+           </button>
+
+           <button
+             onClick={handleTestPush}
+             className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
+           >
+             <Send size={16} />
+             Test Push
            </button>
         </div>
       </header>

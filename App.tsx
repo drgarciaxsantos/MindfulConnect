@@ -10,6 +10,7 @@ import NotificationCenter from './components/NotificationCenter';
 import { initMockData } from './services/storageService';
 import { NotificationProvider, useNotification } from './components/Notifications';
 import { supabase } from './services/supabaseClient';
+import { registerPushNotifications } from './services/pushNotificationService';
 
 const AppContent: React.FC<{
   user: User | null;
@@ -21,6 +22,9 @@ const AppContent: React.FC<{
 
   useEffect(() => {
     setNotificationUser(user);
+    if (user) {
+      registerPushNotifications();
+    }
   }, [user, setNotificationUser]);
 
   const handleLogout = async () => {
