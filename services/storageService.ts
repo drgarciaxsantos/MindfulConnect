@@ -1,7 +1,6 @@
 
 import { Appointment, AppointmentStatus, DayAvailability, TimeSlot, User, UserRole, SystemNotification } from '../types';
 import { supabase } from './supabaseClient';
-import { sendPushNotification } from './pushNotificationService';
 
 const MIN_INTERVAL_MINUTES = 80;
 
@@ -111,9 +110,6 @@ export const createNotification = async (userId: string, message: string) => {
       is_read: false
     });
     if (error) throw error;
-    
-    // Send push notification
-    await sendPushNotification('MindfulConnect', message);
   } catch (e) {
     localNotifications.push({
       id: `local-notif-${Date.now()}-${Math.random()}`,
@@ -122,9 +118,6 @@ export const createNotification = async (userId: string, message: string) => {
       isRead: false,
       createdAt: new Date().toISOString()
     });
-    
-    // Still try to send push notification even if DB fails
-    await sendPushNotification('MindfulConnect', message);
   }
 };
 
